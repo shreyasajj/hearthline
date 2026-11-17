@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directories:
+      - /
+      - /app
+      - /third-party/sendspin/player
+      - /third-party/sendspin/shared
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      kotlin:
+        patterns: ['org.jetbrains.kotlin*']
+      ktor:
+        patterns: ['io.ktor:*']
+      coroutines:
+        patterns: ['org.jetbrains.kotlinx:kotlinx-coroutines-*']
+      android-gradle:
+        patterns: ['com.android.*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10

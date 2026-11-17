@@ -1,5 +1,9 @@
 # Hearthline 0.7.2
 
+[![CI](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml) [![CodeQL](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml)
+
+Source: [shreyasajj/hearthline](https://github.com/shreyasajj/hearthline). Download the current development APK from a successful [CI run](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml). See [security maintenance](SECURITY.md) for protected merges, dependency updates, and automatic CodeQL fix PRs.
+
 A local Android home dashboard with integration-managed Home Assistant setup, remembered tablet pairing, and opt-in foreground tablet telemetry. This tablet project lives in `pixel-home`. Home Assistant integration source is maintained separately in `pixel-table-ha` and https://github.com/shreyasajj/hearthline-ha.
 
 The locked dock now opens directly into the full-screen Good morning overview, with no dock toolbar or unlock buttons. Swipe up from the bottom to reach Android's unlock screen. The native navigation gesture remains available, and screen-reader users have an **Unlock tablet** action. Demonstration, disconnected and assumed-dock states remain labeled in the overview.
