@@ -33,14 +33,15 @@ object WakeModel {
         }
         check(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == SHA256)
         var total = 0L; var entries = 0
-        val basePath = base.toPath().normalize()
+        val basePath = base.canonicalFile.toPath()
         ZipInputStream(context.assets.open("voice/wake-en-us.zip")).use { zip ->
             while(true) {
                 val entry = zip.nextEntry ?: break
                 check(++entries <= 64)
                 val targetPath = basePath.resolve(entry.name).normalize()
-                check(targetPath.startsWith(basePath))
+                if (!targetPath.startsWith(basePath) || targetPath == basePath) throw SecurityException("Invalid model archive entry")
                 val file = targetPath.toFile()
+                if (!file.canonicalFile.toPath().startsWith(basePath)) throw SecurityException("Model archive entry escapes destination")
                 if(entry.isDirectory) file.mkdirs() else {
                     file.parentFile!!.mkdirs()
                     file.outputStream().use { out ->
