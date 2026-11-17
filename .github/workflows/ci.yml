@@ -28,6 +28,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
         with:
           cache-provider: basic
+      - name: Test security PR automation
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
       - name: Compile, test application and Sendspin, and lint
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :sendspin-player:testDebugUnitTest :sendspin-shared:jvmTest :app:lintDebug --no-daemon --stacktrace
       - name: Upload debug APK
