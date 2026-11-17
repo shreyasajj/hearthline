@@ -28,10 +28,13 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
-        with:
-          cache-provider: basic
       - name: Test security PR automation
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Audit runtime, test and build-tool dependencies
+        run: |
+          python3 -m unittest discover -s tools -p 'test_audit_dependencies.py'
+          ./gradlew -I tools/security_inventory.init.gradle securityInventory --no-daemon
+          python3 tools/audit_dependencies.py build/security-inventory.json
       - name: Compile, test application and Sendspin, and lint
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :sendspin-player:testDebugUnitTest :sendspin-shared:jvmTest :app:lintDebug --no-daemon --stacktrace
       - name: Upload debug APK
@@ -51,7 +54,7 @@ jobs:
           retention-days: 14
   dependencies:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -61,3 +64,5 @@ jobs:
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
         with:
           fail-on-severity: low
+          base-ref: ${{ github.event.pull_request.base.sha || 'master' }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}

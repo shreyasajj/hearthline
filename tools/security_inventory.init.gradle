@@ -1,0 +1,28 @@
+// Include application, test, and build-plugin graphs; fail on unresolved dependencies.
+gradle.projectsEvaluated {
+    rootProject.tasks.register('securityInventory') {
+        doLast {
+            def found = new TreeSet<String>()
+            rootProject.allprojects.each { p ->
+                (p.configurations + p.buildscript.configurations).findAll { it.canBeResolved }.each { cfg ->
+                    def graph = cfg.incoming.resolutionResult
+                    graph.allDependencies.each { dependency ->
+                        if (dependency instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult) {
+                            throw new GradleException("Cannot audit ${p.path}:${cfg.name}", dependency.failure)
+                        }
+                    }
+                    graph.allComponents.each { component ->
+                        if (component.id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                            def m = component.moduleVersion
+                            found.add("${m.group}:${m.name}:${m.version}")
+                        }
+                    }
+                }
+            }
+            def target = rootProject.layout.buildDirectory.file('security-inventory.json').get().asFile
+            target.parentFile.mkdirs()
+            target.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(found))
+            println "Wrote ${found.size()} resolved Maven components to ${target}"
+        }
+    }
+}
