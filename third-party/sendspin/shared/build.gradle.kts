@@ -11,7 +11,7 @@ kotlin {
     sourceSets {
         val jvmShared by creating {
             dependsOn(commonMain.get())
-            dependencies { implementation("org.bouncycastle:bcprov-jdk18on:1.80") }
+            dependencies { implementation("org.bouncycastle:bcprov-jdk18on:1.87") }
         }
         androidMain.get().dependsOn(jvmShared)
         jvmMain.get().dependsOn(jvmShared)
