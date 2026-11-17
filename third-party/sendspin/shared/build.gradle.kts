@@ -16,7 +16,7 @@ kotlin {
         androidMain.get().dependsOn(jvmShared)
         jvmMain.get().dependsOn(jvmShared)
         commonMain.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
             implementation("io.ktor:ktor-client-core:3.1.1")
             implementation("io.ktor:ktor-client-websockets:3.1.1")
@@ -29,7 +29,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
         }
         androidMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.1.1") }
         jvmMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.1.1") }
