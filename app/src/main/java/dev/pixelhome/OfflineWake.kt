@@ -33,12 +33,14 @@ object WakeModel {
         }
         check(digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == SHA256)
         var total = 0L; var entries = 0
+        val basePath = base.toPath().normalize()
         ZipInputStream(context.assets.open("voice/wake-en-us.zip")).use { zip ->
             while(true) {
                 val entry = zip.nextEntry ?: break
                 check(++entries <= 64)
-                val file = File(base,entry.name)
-                check(file.canonicalPath.startsWith(base.canonicalPath+File.separator))
+                val targetPath = basePath.resolve(entry.name).normalize()
+                check(targetPath.startsWith(basePath))
+                val file = targetPath.toFile()
                 if(entry.isDirectory) file.mkdirs() else {
                     file.parentFile!!.mkdirs()
                     file.outputStream().use { out ->
