@@ -14,7 +14,7 @@ CI builds the debug APK and runs application tests, Sendspin player tests, share
 
 Dependabot checks Gradle dependencies and GitHub Actions weekly. GitHub Dependabot security updates are enabled separately so available security patches can open PRs without waiting for the weekly version-update schedule. Resolved Gradle dependencies are submitted to the dependency graph after master changes.
 
-Dependabot PRs, including major version updates, queue for squash auto-merge. Master protection still requires every check to pass. The privileged auto-merge workflow only calls the GitHub API; it does not check out or run PR code. Failed updates remain unmerged. All workflow actions are pinned to commit hashes, which Dependabot can update.
+Dependabot PRs, including major version updates, queue for squash auto-merge. Master protection still requires every check to pass. The privileged auto-merge workflow only calls the GitHub API; it does not check out or run PR code. Failed updates remain unmerged. A trusted workflow reconciles master CI, CodeQL, and dependency submission after successful checks, with an hourly fallback: GitHub suppresses normal push events when a merge uses `GITHUB_TOKEN`. Missing master runs are explicitly dispatched without storing a personal token. All workflow actions are pinned to commit hashes, which Dependabot can update.
 
 ## CodeQL patches
 

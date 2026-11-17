@@ -1,0 +1,36 @@
+name: Refresh master checks
+on:
+  workflow_run:
+    workflows: [CI, CodeQL, Dependabot auto-merge]
+    types: [completed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: refresh-master-checks
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # No checkout: this privileged job only reconciles trusted master workflows.
+      - name: Start missing master checks after bot auto-merges
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # Let GitHub finish an auto-merge triggered by the completed check.
+          sleep 20
+          master_sha=$(gh api "repos/$GH_REPO/commits/master" --jq .sha)
+          for workflow in ci.yml codeql.yml dependency-submission.yml; do
+            count=$(gh api "repos/$GH_REPO/actions/workflows/$workflow/runs?branch=master&head_sha=$master_sha&per_page=10" \
+              --jq '[.workflow_runs[] | select((.event == "push" or .event == "workflow_dispatch") and .conclusion != "cancelled")] | length')
+            if [ "$count" -eq 0 ]; then
+              gh workflow run "$workflow" --repo "$GH_REPO" --ref master
+            fi
+          done
