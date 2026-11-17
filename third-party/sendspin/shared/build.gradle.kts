@@ -17,7 +17,7 @@ kotlin {
         jvmMain.get().dependsOn(jvmShared)
         commonMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
             implementation("io.ktor:ktor-client-core:3.1.1")
             implementation("io.ktor:ktor-client-websockets:3.1.1")
             listOf("io.ktor:ktor-server-cio:3.1.1", "io.ktor:ktor-server-websockets:3.1.1").forEach {
