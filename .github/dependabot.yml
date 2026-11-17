@@ -1,15 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: gradle
-    directories:
-      - /
-      - /app
-      - /third-party/sendspin/player
-      - /third-party/sendspin/shared
+    directory: /
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
       kotlin:
         patterns: ['org.jetbrains.kotlin*']
@@ -24,4 +20,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
