@@ -7,9 +7,10 @@ android {
     compileSdk = 35
     defaultConfig { minSdk = 31 }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17" }
     testOptions { unitTests.isReturnDefaultValues = true }
 }
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
 dependencies {
     implementation("io.ktor:ktor-client-core:3.1.1")
     api(project(":sendspin-shared"))
