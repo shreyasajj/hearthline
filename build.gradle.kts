@@ -10,7 +10,7 @@ buildscript {
             add("classpath", "com.google.protobuf:protobuf-java:3.25.9") {
                 because("Use a patched build-tool dependency; see SECURITY.md")
             }
-            add("classpath", "com.google.protobuf:protobuf-java-util:3.25.9") {
+            add("classpath", "com.google.protobuf:protobuf-java-util:4.36.2") {
                 because("Use a patched build-tool dependency; see SECURITY.md")
             }
             add("classpath", "commons-io:commons-io:2.22.0") {
