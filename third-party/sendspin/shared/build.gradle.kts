@@ -18,9 +18,9 @@ kotlin {
         commonMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-            implementation("io.ktor:ktor-client-core:3.1.1")
-            implementation("io.ktor:ktor-client-websockets:3.1.1")
-            listOf("io.ktor:ktor-server-cio:3.1.1", "io.ktor:ktor-server-websockets:3.1.1").forEach {
+            implementation("io.ktor:ktor-client-core:3.6.1")
+            implementation("io.ktor:ktor-client-websockets:3.6.1")
+            listOf("io.ktor:ktor-server-cio:3.6.1", "io.ktor:ktor-server-websockets:3.6.1").forEach {
                 implementation(it) {
                     exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect")
                     exclude(group = "org.fusesource.jansi", module = "jansi")
@@ -31,8 +31,8 @@ kotlin {
             implementation(kotlin("test"))
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
         }
-        androidMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.1.1") }
-        jvmMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.1.1") }
+        androidMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.6.1") }
+        jvmMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.6.1") }
         jvmTest.dependencies { implementation(kotlin("test-junit")) }
     }
     compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
