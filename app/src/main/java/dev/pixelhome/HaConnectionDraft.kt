@@ -7,6 +7,10 @@ class HaConnectionDraft {
     var legacy by mutableStateOf(false)
     var url by mutableStateOf("")
     var token by mutableStateOf(""); private set
+    /** Pairing code shown in HA options; digits only, never persisted. */
+    var code by mutableStateOf(""); private set
+    /** Pair with a long-lived admin token instead of a code (advanced). */
+    var useToken by mutableStateOf(false)
     var sensor by mutableStateOf("sensor.pixel_home_dashboard")
     var scannerRequested by mutableStateOf(false)
     var note by mutableStateOf<String?>(null)
@@ -33,6 +37,8 @@ class HaConnectionDraft {
         val start = imagePendingAt; imagePendingAt = null
         return start != null && now - start in 0..120000
     }
-    fun clearToken() { token = ""; scannerRequested = false }
+    fun updateCode(value: String) { code = value.filter(Char::isDigit).take(8); note = null }
+    val codeComplete get() = code.length == 8
+    fun clearToken() { token = ""; code = ""; scannerRequested = false }
     fun cancelRequests() { cameraPendingAt = null; imagePendingAt = null; scannerRequested = false }
 }

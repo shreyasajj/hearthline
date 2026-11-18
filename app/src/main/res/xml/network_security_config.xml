@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Why cleartext is permitted at all: a manually entered Sendspin server is usually ws://host:8927/sendspin,
+  and OkHttp (inside the Sendspin client) refuses ws:// when cleartext is denied. Android cannot scope this to
+  "any LAN host", so it is allowed here and restricted in code instead:
+  - Home Assistant: HomeAssistant.kt rejects anything except an https:// origin, and never follows redirects.
+  - Journey maps: TemplateSheet.kt only lets https:// requests to the user's allow-listed origins through.
+  - Sendspin: the session is end-to-end encrypted by its Noise handshake; the app refuses servers without it.
+  - Inbound sockets (Sendspin listener, discovery on 8787) are not affected by this setting.
+  Trust anchors stay at the platform default (system CAs only), as before this file existed.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
