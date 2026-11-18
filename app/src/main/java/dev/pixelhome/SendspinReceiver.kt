@@ -18,6 +18,7 @@ import com.sendspindroid.model.PlaybackStateType
 import com.sendspindroid.playback.SendSpinEngine
 import com.sendspindroid.sendspin.*
 import com.sendspindroid.sendspin.crypto.*
+import com.sendspindroid.sendspin.pairing.PairingCodeFormat
 import com.sendspindroid.sendspin.pairing.PairingOutcome
 import com.sendspindroid.sendspin.protocol.AdmissionState
 import com.sendspindroid.sendspin.protocol.TrackMetadata
@@ -51,6 +52,20 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
     var volume by mutableIntStateOf(prefs.getInt("volume", 30).coerceIn(0,100)); private set
     var muted by mutableStateOf(prefs.getBoolean("muted",false)); private set
     var pairedServers by mutableStateOf<Int?>(null); private set
+    var pairingCode by mutableStateOf<String?>(null); private set
+    var pairingCodeFormat by mutableStateOf(PairingCodeFormat.DIGITS); private set
+    var pairingGestureRequired by mutableStateOf(false); private set
+    private fun clearPairingCode() { pairingCode = null; pairingGestureRequired = false }
+    fun cancelCodePairing() {
+        val showing = pairingCode != null || pairingGestureRequired
+        clearPairingCode()
+        if(showing) runtime?.client?.cancelPairing()
+    }
+    fun allowCodePairing() {
+        if(!unlocked() || !visible || resetting || !pairingGestureRequired) return
+        pairingGestureRequired = false
+        runtime?.client?.confirmDynamicPairingGesture()
+    }
     private fun unlocked(): Boolean = context.getSystemService(KeyguardManager::class.java).let { !it.isKeyguardLocked && !it.isDeviceLocked }
     fun visible(value: Boolean) { if(visible != value) { visible = value; reconcile() } }
     fun enable(value: Boolean) {
@@ -107,6 +122,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
         val pending = closing
         val waitForClose = cleanup.launch { pending?.join(); previous?.close() }
         closing = waitForClose
+        clearPairingCode()
         listeningPort = null; discovery = "Not advertising"; output = "No audio stream"; playerRunning = false; focusHeld = false; title = null; error = null
         status = if(!enabled) "Disabled" else if(!visible) "Paused · Hearthline is not visible" else "Starting receiver…"
         if(!enabled || !visible) return
@@ -192,6 +208,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
             override fun rememberServerName(serverId: String, name: String) {}
             override fun forgetServerName(serverId: String) {}
             override fun onPairingOutcome(outcome: PairingOutcome) { post {
+                clearPairingCode()
                 pairedServers = store.trust.listRecords().size
                 status = when(outcome) {
                     is PairingOutcome.Paired -> "Paired · waiting for server activation"
@@ -205,6 +222,16 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
             fun fromClient(action: () -> Unit) { post { if(client === source) action() } }
             fun ownsOutput() = active.get() && client === source
             val result = SendSpin(settings.name,object : SendSpin.Callback {
+                override fun onDynamicPairingCodeEmitted(code: String, format: PairingCodeFormat) { fromClient {
+                    if(unlocked() && visible) {
+                        pairingCodeFormat = format; pairingCode = code; pairingGestureRequired = false
+                    } else source.cancelPairing()
+                } }
+                override fun onDynamicPairingCodeCleared() { fromClient { clearPairingCode() } }
+                override fun onDynamicPairingGestureRequested() { fromClient {
+                    if(unlocked() && visible) { pairingCode = null; pairingGestureRequired = true }
+                    else source.cancelPairing()
+                } }
                 override fun onStateChanged(state: String) { fromClient { engine.applyServerPlayback(PlaybackStateType.fromString(state)) } }
                 override fun onGroupUpdate(groupId: String, groupName: String, playbackState: String) { fromClient { engine.applyServerPlayback(PlaybackStateType.fromString(playbackState)) } }
                 override fun onMetadataUpdate(metadata: TrackMetadata, positionMs: Long) { fromClient { title = metadata.title?.take(160) } }
@@ -225,7 +252,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                 override fun onAdmissionStateChanged(state: AdmissionState) { fromClient {
                     status = when(state) {
                         AdmissionState.AWAITING_APPROVAL -> "Awaiting approval in Music Assistant"
-                        AdmissionState.PAIRING -> "Pairing · use the receiver pairing QR in Music Assistant"
+                        AdmissionState.PAIRING -> "Pairing · enter the displayed code on your phone or use the receiver QR"
                         AdmissionState.READY -> "Connected · waiting for stream"
                     }
                 } }
@@ -234,6 +261,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                     reconnectAllowed = reconnect
                     engine.endStream()
                     fromClient {
+                    clearPairingCode()
                     engine.releasePlayer(); output = "No audio stream"; playerRunning = false; focusHeld = false; title = null
                     audio.abandonAudioFocusRequest(focusRequest); hasFocus = false
                     status = if(settings.server.isEmpty()) "Listening · waiting for Music Assistant" else "Disconnected · reconnecting"
@@ -249,7 +277,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                 val connections = InboundConnections(scope,{ newClient() },{ admitted ->
                     engine.endStream() // clear the old format before a new connection can send stream/start
                     client = admitted
-                    post { if(client === admitted) { engine.releasePlayer(); engine.client = admitted; status = "Connected · awaiting activation" } }
+                    post { if(client === admitted) { clearPairingCode(); engine.releasePlayer(); engine.client = admitted; status = "Connected · awaiting activation" } }
                 },{ prefs.getString("last_server",null) },{ prefs.edit().putString("last_server",it).apply() })
                 inbound = connections; connections.open()
                 val listener = SendspinWebSocketServer { transport ->
@@ -265,6 +293,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                 var backoff = 2000L
                 while(isActive && active.get()) {
                     reconnectAllowed = true
+                    clearPairingCode()
                     val next = newClient(); client = next; engine.client = next
                     status = "Connecting to Music Assistant…"
                     next.connect(settings.server.removeSuffix("/sendspin"),"/sendspin")
@@ -280,6 +309,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
             }
         }
         fun silence() {
+            if(runtime === this) clearPairingCode()
             active.set(false)
             engine.setMuted(SyncAudioPlayer.MuteReason.INTERRUPTION,true)
             advertiser?.stop()

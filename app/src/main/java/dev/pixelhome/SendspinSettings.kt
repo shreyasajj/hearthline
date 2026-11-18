@@ -15,6 +15,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 import android.graphics.Bitmap
+import com.sendspindroid.sendspin.pairing.PairingCodeFormat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
@@ -55,7 +56,7 @@ val LocalSendspinReceiver = staticCompositionLocalOf<SendspinReceiver> { error("
             OutlinedTextField(port,{port=it},label={Text("Listening port (automatic discovery mode)")},singleLine=true,modifier=Modifier.fillMaxWidth())
             OutlinedButton(onClick={ receiver.configure(name,server,port) },modifier=Modifier.heightIn(min=56.dp)) { Text("Apply receiver settings / reconnect") }
             OutlinedButton(onClick={ pairingToken = receiver.pairingToken() },modifier=Modifier.heightIn(min=56.dp)) { Text("Show receiver pairing QR") }
-            Text("Pair this receiver in Music Assistant using its own pairing token. Unpaired playback is disabled. Requires a server supporting encrypted Sendspin; legacy plaintext servers must be upgraded.")
+            Text("Start pairing in Music Assistant on your phone, then enter the six-digit code displayed on this tablet. You can also use the receiver pairing QR. Unpaired playback is disabled. Requires a server supporting encrypted Sendspin; legacy plaintext servers must be upgraded.")
             Text("Receiver volume: ${receiver.volume}% · Android media volume also applies")
             Slider(receiver.volume.toFloat(),{ receiver.changeVolume(it.toInt()) },valueRange=0f..100f)
             Row {
@@ -84,6 +85,56 @@ val LocalSendspinReceiver = staticCompositionLocalOf<SendspinReceiver> { error("
                     Text(token,fontFamily=FontFamily.Monospace,style=MaterialTheme.typography.bodySmall)
                     Button(onClick={pairingToken=null},modifier=Modifier.heightIn(min=56.dp)) { Text("Close pairing QR") }
                 }
+            }
+        }
+    }
+}
+
+/** Session codes come from the encrypted Sendspin handshake, never from a local PIN. */
+@Composable fun SendspinPairingDialog(receiver: SendspinReceiver) {
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleState by owner.lifecycle.currentStateFlow.collectAsState()
+    DisposableEffect(owner, receiver) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if(event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) receiver.cancelCodePairing()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer); receiver.cancelCodePairing() }
+    }
+    if(!lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return
+    val code = receiver.pairingCode
+    if(code == null && !receiver.pairingGestureRequired) return
+    SendspinPairingPrompt(code, receiver.pairingCodeFormat, receiver.pairingGestureRequired, receiver::allowCodePairing, receiver::cancelCodePairing)
+}
+
+@Composable internal fun SendspinPairingPrompt(
+    code: String?, format: PairingCodeFormat, gestureRequired: Boolean,
+    onAllow: () -> Unit, onCancel: () -> Unit
+) {
+    if(code == null && !gestureRequired) return
+    Dialog(onDismissRequest=onCancel, properties=DialogProperties(securePolicy=SecureFlagPolicy.SecureOn)) {
+        Surface(shape=MaterialTheme.shapes.extraLarge) {
+            Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                Text("Sendspin pairing", style=MaterialTheme.typography.headlineSmall)
+                if(gestureRequired) {
+                    Text("Allow another pairing attempt? Continue only if you started pairing in Music Assistant.")
+                    Button(onClick=onAllow) { Text("Allow pairing") }
+                } else if(code != null) {
+                    if(format == PairingCodeFormat.DIGITS) {
+                        Text("Enter this code in Music Assistant on your phone. It expires automatically when this pairing attempt ends.")
+                        Text(code, fontFamily=FontFamily.Monospace, style=MaterialTheme.typography.displayMedium)
+                    } else {
+                        Text("Scan this code using Music Assistant's Sendspin pairing flow on your phone.")
+                        val bitmap = remember(code) {
+                            val matrix = MultiFormatWriter().encode(code, BarcodeFormat.QR_CODE, 512, 512, mapOf(EncodeHintType.MARGIN to 3))
+                            Bitmap.createBitmap(512,512,Bitmap.Config.ARGB_8888).apply {
+                                setPixels(IntArray(512*512) { i -> if(matrix[i%512,i/512]) android.graphics.Color.BLACK else android.graphics.Color.WHITE },0,512,0,0,512,512)
+                            }
+                        }
+                        Image(bitmap.asImageBitmap(), "Sendspin session pairing QR", Modifier.sizeIn(maxWidth=256.dp,maxHeight=256.dp).aspectRatio(1f))
+                    }
+                }
+                OutlinedButton(onClick=onCancel) { Text("Cancel pairing") }
             }
         }
     }
