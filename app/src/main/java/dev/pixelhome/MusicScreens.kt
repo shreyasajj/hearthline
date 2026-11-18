@@ -46,9 +46,21 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import dev.pixelhome.PlaybackNavigation.Page
 
+internal enum class HomePlayerSource { SENDSPIN, HOME_ASSISTANT }
+internal fun homePlayerSource(receivingPlayback: Boolean, selectedPlayer: String) =
+    if(receivingPlayback || selectedPlayer.isEmpty()) HomePlayerSource.SENDSPIN else HomePlayerSource.HOME_ASSISTANT
+internal fun usesSendspin(vm: HubViewModel, receiver: SendspinReceiver) = homePlayerSource(receiver.receivingPlayback,vm.selectedPlayer)==HomePlayerSource.SENDSPIN
+internal fun displayTrackTitle(vm: HubViewModel, receiver: SendspinReceiver): String =
+    if(usesSendspin(vm,receiver)) receiver.title?.takeIf { it.isNotBlank() } ?: "Sendspin receiver" else vm.player?.attrs?.optString("media_title")?.takeIf { it.isNotBlank() } ?: "Nothing playing"
+internal fun displayTrackArtist(vm: HubViewModel, receiver: SendspinReceiver): String =
+    if(usesSendspin(vm,receiver)) receiver.artist?.takeIf { it.isNotBlank() } ?: receiver.serverName ?: receiver.status else vm.player?.attrs?.optString("media_artist")?.takeIf { it.isNotBlank() } ?: "Select music to begin"
+internal fun displayPlayerStatus(vm: HubViewModel, receiver: SendspinReceiver): String =
+    if(usesSendspin(vm,receiver)) "Sendspin · ${receiver.serverName ?: receiver.status} · ${if(receiver.muted) "Muted" else receiver.output}" else "${vm.player?.name ?: vm.selectedPlayer} · ${vm.player?.state ?: "unavailable"}"
+
 /** Player controls, the Music page and the simplified idle player. */
 @Composable internal fun AlbumArt(vm: HubViewModel, modifier: Modifier = Modifier) {
-    val bitmap = vm.artwork
+    val receiver=LocalSendspinReceiver.current
+    val bitmap = if(usesSendspin(vm,receiver)) receiver.artwork else vm.artwork
     Box(modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
         if (bitmap != null) Image(bitmap.asImageBitmap(), "Current album artwork", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Canvas(Modifier.fillMaxSize()) {
@@ -61,20 +73,26 @@ import dev.pixelhome.PlaybackNavigation.Page
     }
 }
 @Composable internal fun TrackText(vm: HubViewModel, large: Boolean = false) {
-    Text(vm.player?.attrs?.optString("media_title")?.takeIf { it.isNotBlank() } ?: "Nothing playing", fontSize = if (large) 40.sp else 28.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(vm.player?.attrs?.optString("media_artist")?.takeIf { it.isNotBlank() } ?: "Select music to begin", style = MaterialTheme.typography.titleMedium)
+    val receiver=LocalSendspinReceiver.current
+    Text(displayTrackTitle(vm,receiver),fontSize=if(large) 40.sp else 28.sp,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+    Text(displayTrackArtist(vm,receiver),style=MaterialTheme.typography.titleMedium)
 }
 @Composable internal fun Transport(vm: HubViewModel, large: Boolean = false) {
-    val p = vm.player
-    val enabled = !LocalDockReadOnly.current && vm.canControl && p?.available == true
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { vm.command(vm.selectedPlayer, "media_previous_track") }, enabled = enabled && p?.supports(16) == true, modifier = Modifier.size(if (large) 80.dp else 56.dp)) { Icon(Icons.Outlined.SkipPrevious, "Previous track", Modifier.size(if (large) 48.dp else 32.dp)) }
-        Spacer(Modifier.width(if (large) 40.dp else 12.dp))
-        FilledIconButton(onClick = { vm.command(vm.selectedPlayer, if (vm.playing) "media_pause" else "media_play") }, enabled = enabled && p?.supports(if (vm.playing) 1 else 16384) == true, modifier = Modifier.size(if (large) 112.dp else 76.dp)) {
-            Icon(if (vm.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, if (vm.playing) "Pause" else "Play", Modifier.size(if (large) 64.dp else 40.dp))
+    val receiver=LocalSendspinReceiver.current
+    val sendspin=usesSendspin(vm,receiver)
+    val playing=if(sendspin) receiver.serverPlaybackPlaying else vm.playing
+    val p=vm.player
+    val enabled=!LocalDockReadOnly.current
+    fun supported(command: String, bit: Long) = enabled && if(sendspin) receiver.canControl(command) else vm.canControl && p?.available==true && p.supports(bit)
+    fun control(command: String, action: String) { if(sendspin) receiver.control(command) else vm.command(vm.selectedPlayer,action) }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
+        IconButton(onClick={control("previous","media_previous_track")},enabled=supported("previous",16),modifier=Modifier.size(if(large) 80.dp else 56.dp)) { Icon(Icons.Outlined.SkipPrevious,"Previous track",Modifier.size(if(large) 48.dp else 32.dp)) }
+        Spacer(Modifier.width(if(large) 40.dp else 12.dp))
+        FilledIconButton(onClick={control(if(playing) "pause" else "play",if(playing) "media_pause" else "media_play")},enabled=supported(if(playing) "pause" else "play",if(playing) 1 else 16384),modifier=Modifier.size(if(large) 112.dp else 76.dp)) {
+            Icon(if(playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(playing) "Pause" else "Play",Modifier.size(if(large) 64.dp else 40.dp))
         }
-        Spacer(Modifier.width(if (large) 40.dp else 12.dp))
-        IconButton(onClick = { vm.command(vm.selectedPlayer, "media_next_track") }, enabled = enabled && p?.supports(32) == true, modifier = Modifier.size(if (large) 80.dp else 56.dp)) { Icon(Icons.Outlined.SkipNext, "Next track", Modifier.size(if (large) 48.dp else 32.dp)) }
+        Spacer(Modifier.width(if(large) 40.dp else 12.dp))
+        IconButton(onClick={control("next","media_next_track")},enabled=supported("next",32),modifier=Modifier.size(if(large) 80.dp else 56.dp)) { Icon(Icons.Outlined.SkipNext,"Next track",Modifier.size(if(large) 48.dp else 32.dp)) }
     }
 }
 @Composable internal fun ValueSlider(label: String, value: Float, enabled: Boolean, onCommit: (Float) -> Unit) {
@@ -88,17 +106,21 @@ import dev.pixelhome.PlaybackNavigation.Page
     }
 }
 @Composable internal fun Volume(vm: HubViewModel) {
-    ValueSlider("Volume", vm.player?.attrs?.optDouble("volume_level", 0.0)?.toFloat() ?: 0f, !LocalDockReadOnly.current && vm.canControl && vm.player?.available == true && vm.player?.supports(4) == true) {
-        vm.command(vm.selectedPlayer, "volume_set", JSONObject().put("volume_level", it.toDouble()))
+    val receiver=LocalSendspinReceiver.current
+    if(usesSendspin(vm,receiver)) {
+        ValueSlider("Volume",receiver.volume/100f,!LocalDockReadOnly.current && receiver.enabled && !receiver.resetting) { receiver.changeVolume((it*100).toInt()) }
+    } else ValueSlider("Volume",vm.player?.attrs?.optDouble("volume_level",0.0)?.toFloat() ?: 0f,!LocalDockReadOnly.current && vm.canControl && vm.player?.available==true && vm.player?.supports(4)==true) {
+        vm.command(vm.selectedPlayer,"volume_set",JSONObject().put("volume_level",it.toDouble()))
     }
 }
 @Composable internal fun SpeakerPicker(vm: HubViewModel) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { expanded = true }, enabled = !LocalDockReadOnly.current, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-            Icon(Icons.Outlined.Speaker, null); Spacer(Modifier.width(10.dp)); Text(vm.player?.name ?: "Select speaker", Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis); Icon(Icons.Outlined.ExpandMore, null)
+            Icon(Icons.Outlined.Speaker, null); Spacer(Modifier.width(10.dp)); Text("Fallback: ${vm.player?.name ?: "Sendspin only"}", Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis); Icon(Icons.Outlined.ExpandMore, null)
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text={Text("Sendspin only")},onClick={vm.select(""); expanded=false})
             vm.config.players.forEach { id -> DropdownMenuItem(text = { Text(vm.entities[id]?.name ?: id) }, onClick = { vm.select(id); expanded = false }) }
         }
     }
@@ -108,7 +130,7 @@ import dev.pixelhome.PlaybackNavigation.Page
         Text("NOW PLAYING", style = MaterialTheme.typography.labelLarge)
         AlbumArt(vm, Modifier.size(144.dp).clickable(enabled = !LocalDockReadOnly.current, onClickLabel = "Open music") { vm.open(Page.MUSIC) })
         TrackText(vm)
-        Text(vm.player?.state ?: "No player configured", style = MaterialTheme.typography.labelLarge)
+        Text(displayPlayerStatus(vm,LocalSendspinReceiver.current), style = MaterialTheme.typography.labelLarge)
         Transport(vm); SpeakerPicker(vm); Volume(vm)
         TextButton(onClick = { vm.open(Page.MUSIC) }, enabled = !LocalDockReadOnly.current) { Text("Open music") }
     }
@@ -142,7 +164,7 @@ import dev.pixelhome.PlaybackNavigation.Page
 @Composable internal fun IdleScreen(vm: HubViewModel, wide: Boolean, clock: LocalDateTime) {
     if (wide) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
         AlbumArt(vm, Modifier.size(210.dp).clickable(onClickLabel = "Open music") { vm.open(Page.MUSIC) })
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) { TrackText(vm, true); Text(vm.player?.name.orEmpty(), style = MaterialTheme.typography.titleLarge) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) { TrackText(vm, true); Text(displayPlayerStatus(vm,LocalSendspinReceiver.current), style = MaterialTheme.typography.titleLarge) }
         Text(clock.format(DateTimeFormatter.ofPattern("h:mm")), fontSize = 48.sp)
     } else { AlbumArt(vm, Modifier.size(160.dp).clickable(onClickLabel = "Open music") { vm.open(Page.MUSIC) }); TrackText(vm) }
     Spacer(Modifier.height(24.dp))

@@ -1,5 +1,7 @@
 package dev.pixelhome
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.app.Application
 import android.app.KeyguardManager
 import android.media.AudioAttributes
@@ -48,6 +50,24 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
     private var focusHeld by mutableStateOf(false)
     val audioPlaying get() = enabled && playerRunning && focusHeld
     var title by mutableStateOf<String?>(null); private set
+    var artist by mutableStateOf<String?>(null); private set
+    var serverName by mutableStateOf<String?>(null); private set
+    var artwork by mutableStateOf<Bitmap?>(null); private set
+    var serverPlaybackPlaying by mutableStateOf(false); private set
+    private var receivingStream by mutableStateOf(false)
+    val receivingPlayback get() = enabled && receivingStream && serverPlaybackPlaying
+    var controlCommands by mutableStateOf<Set<String>>(emptySet()); private set
+    private val artworkGeneration = java.util.concurrent.atomic.AtomicInteger()
+    private fun clearReceiverDisplay() {
+        receivingStream=false; serverPlaybackPlaying=false; title=null; artist=null; serverName=null; artwork=null; controlCommands=emptySet(); artworkGeneration.incrementAndGet()
+    }
+    fun canControl(command: String) = visible && enabled && !resetting && unlocked() && command in controlCommands && runtime?.client?.canSendCommand(command)==true
+    fun control(command: String) {
+        if(!canControl(command)) return
+        val client=runtime?.client ?: return
+        if(!client.canSendCommand(command)) return
+        when(command) { "play" -> client.play(); "pause" -> client.pause(); "next" -> client.next(); "previous" -> client.previous() }
+    }
     var error by mutableStateOf<String?>(null); private set
     var volume by mutableIntStateOf(prefs.getInt("volume", 30).coerceIn(0,100)); private set
     var muted by mutableStateOf(prefs.getBoolean("muted",false)); private set
@@ -122,7 +142,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
         val pending = closing
         val waitForClose = cleanup.launch { pending?.join(); previous?.close() }
         closing = waitForClose
-        clearPairingCode()
+        clearPairingCode(); clearReceiverDisplay()
         listeningPort = null; discovery = "Not advertising"; output = "No audio stream"; playerRunning = false; focusHeld = false; title = null; error = null
         status = if(!enabled) "Disabled" else if(!visible) "Paused · Hearthline is not visible" else "Starting receiver…"
         if(!enabled || !visible) return
@@ -149,6 +169,13 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
             silence(); cleanup.launch { close() }
         })
         @Volatile var client: SendSpin? = null
+        private var controlsJob: Job? = null
+        private fun observeControls(source: SendSpin) {
+            controlsJob?.cancel(); controlCommands=emptySet()
+            controlsJob=scope.launch { source.controllerState.collect { state -> post {
+                if(client===source) controlCommands=state?.supportedCommands?.filter { source.canSendCommand(it) }?.toSet().orEmpty()
+            } } }
+        }
         private var server: SendspinWebSocketServer? = null
         private var inbound: InboundConnections? = null
         private var advertiser: NsdAdvertiser? = null
@@ -194,7 +221,8 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
         private val host = object : SendSpinHost {
             // Shown to Music Assistant; it was hard-coded to 0.6.1 through 0.7.3.
             override val softwareVersion = "Hearthline " + (runCatching { context.packageManager.getPackageInfo(context.packageName,0).versionName }.getOrNull() ?: "unknown")
-            override val lowMemoryMode = true
+            // Advertise artwork for the shared player UI; decoding is bounded separately.
+            override val lowMemoryMode = false
             override val highPowerMode = false
             override val serverColors = false
             override fun preferredCodec() = "pcm"
@@ -232,24 +260,32 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                     if(unlocked() && visible) { pairingCode = null; pairingGestureRequired = true }
                     else source.cancelPairing()
                 } }
-                override fun onStateChanged(state: String) { fromClient { engine.applyServerPlayback(PlaybackStateType.fromString(state)) } }
-                override fun onGroupUpdate(groupId: String, groupName: String, playbackState: String) { fromClient { engine.applyServerPlayback(PlaybackStateType.fromString(playbackState)) } }
-                override fun onMetadataUpdate(metadata: TrackMetadata, positionMs: Long) { fromClient { title = metadata.title?.take(160) } }
-                override fun onArtwork(imageData: ByteArray) {}
-                override fun onArtworkCleared() {}
+                override fun onStateChanged(state: String) { fromClient { serverPlaybackPlaying=state=="playing"; serverName=source.getServerName()?.take(160); engine.applyServerPlayback(PlaybackStateType.fromString(state)) } }
+                override fun onGroupUpdate(groupId: String, groupName: String, playbackState: String) { fromClient { serverPlaybackPlaying=playbackState=="playing"; serverName=source.getServerName()?.take(160); engine.applyServerPlayback(PlaybackStateType.fromString(playbackState)) } }
+                override fun onMetadataUpdate(metadata: TrackMetadata, positionMs: Long) { fromClient { title = metadata.title?.take(160); artist=metadata.artist?.take(160) } }
+                override fun onArtwork(imageData: ByteArray) {
+                    if(!ownsOutput()) return
+                    val generation=artworkGeneration.incrementAndGet()
+                    scope.launch {
+                        val bitmap=withContext(Dispatchers.Default) { decodeReceiverArtwork(imageData) }
+                        fromClient { if(artworkGeneration.get()==generation) artwork=bitmap }
+                    }
+                }
+                override fun onArtworkCleared() { if(!ownsOutput()) return; val generation=artworkGeneration.incrementAndGet(); fromClient { if(artworkGeneration.get()==generation) artwork=null } }
                 override fun onStreamStart(codec: String, sampleRate: Int, channels: Int, bitDepth: Int, codecHeader: ByteArray?) {
-                    if(ownsOutput()) engine.onStreamStart(codec,sampleRate,channels,bitDepth,codecHeader)
+                    if(ownsOutput()) { engine.onStreamStart(codec,sampleRate,channels,bitDepth,codecHeader); fromClient { receivingStream=true } }
                 }
                 override fun onStreamClear() { if(ownsOutput()) engine.onStreamClear() }
-                override fun onStreamEnd() { if(ownsOutput()) engine.onStreamEnd(); fromClient { output = "Stream ended"; audio.abandonAudioFocusRequest(focusRequest); hasFocus = false; focusHeld = false; playerRunning = false } }
+                override fun onStreamEnd() { if(ownsOutput()) engine.onStreamEnd(); fromClient { receivingStream=false; output = "Stream ended"; audio.abandonAudioFocusRequest(focusRequest); hasFocus = false; focusHeld = false; playerRunning = false } }
                 override fun onAudioChunk(serverTimeMicros: Long, audioData: ByteArray) { if(ownsOutput()) engine.onAudioChunk(serverTimeMicros,audioData) }
                 override fun onVolumeChanged(volume: Int) { fromClient { applyVolume(volume,muted) } }
                 override fun onMutedChanged(muted: Boolean) { fromClient { applyVolume(volume,muted) } }
                 override fun onSyncOffsetApplied(offsetMs: Double, source: String) {}
                 override fun onNetworkChanged() { if(ownsOutput()) engine.onNetworkChanged() }
                 override fun onSyncMuteChanged(muted: Boolean) { if(ownsOutput()) engine.onSyncMuteChanged(muted) }
-                override fun onPlayerRoleChanged(active: Boolean) { fromClient { if(!active) { engine.endStream(); engine.releasePlayer(); output = "Player role inactive"; audio.abandonAudioFocusRequest(focusRequest); hasFocus = false; focusHeld = false; playerRunning = false } } }
+                override fun onPlayerRoleChanged(active: Boolean) { fromClient { if(!active) { receivingStream=false; engine.endStream(); engine.releasePlayer(); output = "Player role inactive"; audio.abandonAudioFocusRequest(focusRequest); hasFocus = false; focusHeld = false; playerRunning = false } } }
                 override fun onAdmissionStateChanged(state: AdmissionState) { fromClient {
+                    serverName=source.getServerName()?.take(160)
                     status = when(state) {
                         AdmissionState.AWAITING_APPROVAL -> "Awaiting approval in Music Assistant"
                         AdmissionState.PAIRING -> "Pairing · enter the displayed code on your phone or use the receiver QR"
@@ -261,7 +297,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                     reconnectAllowed = reconnect
                     engine.endStream()
                     fromClient {
-                    clearPairingCode()
+                    clearPairingCode(); clearReceiverDisplay()
                     engine.releasePlayer(); output = "No audio stream"; playerRunning = false; focusHeld = false; title = null
                     audio.abandonAudioFocusRequest(focusRequest); hasFocus = false
                     status = if(settings.server.isEmpty()) "Listening · waiting for Music Assistant" else "Disconnected · reconnecting"
@@ -277,7 +313,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                 val connections = InboundConnections(scope,{ newClient() },{ admitted ->
                     engine.endStream() // clear the old format before a new connection can send stream/start
                     client = admitted
-                    post { if(client === admitted) { clearPairingCode(); engine.releasePlayer(); engine.client = admitted; status = "Connected · awaiting activation" } }
+                    post { if(client === admitted) { clearPairingCode(); clearReceiverDisplay(); observeControls(admitted); engine.releasePlayer(); engine.client = admitted; status = "Connected · awaiting activation" } }
                 },{ prefs.getString("last_server",null) },{ prefs.edit().putString("last_server",it).apply() })
                 inbound = connections; connections.open()
                 val listener = SendspinWebSocketServer { transport ->
@@ -293,8 +329,8 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
                 var backoff = 2000L
                 while(isActive && active.get()) {
                     reconnectAllowed = true
-                    clearPairingCode()
-                    val next = newClient(); client = next; engine.client = next
+                    clearPairingCode(); clearReceiverDisplay()
+                    val next = newClient(); client = next; observeControls(next); engine.client = next
                     status = "Connecting to Music Assistant…"
                     next.connect(settings.server.removeSuffix("/sendspin"),"/sendspin")
                     val end = next.connectionState.first { it is TransportState.Idle || it is TransportState.Failed }
@@ -309,7 +345,7 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
             }
         }
         fun silence() {
-            if(runtime === this) clearPairingCode()
+            if(runtime === this) { clearPairingCode(); clearReceiverDisplay() }
             active.set(false)
             engine.setMuted(SyncAudioPlayer.MuteReason.INTERRUPTION,true)
             advertiser?.stop()
@@ -326,4 +362,17 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
         val pending = closing
         cleanup.launch { pending?.join(); old?.close(); cleanup.cancel() }
     }
+}
+
+internal fun decodeReceiverArtwork(data: ByteArray): Bitmap? {
+    if(data.size !in 1..(4*1024*1024)) return null
+    return runCatching {
+        val options=BitmapFactory.Options().apply { inJustDecodeBounds=true }
+        BitmapFactory.decodeByteArray(data,0,data.size,options)
+        if(options.outWidth<=0 || options.outHeight<=0) return null
+        var sample=1
+        while(options.outWidth/sample>1024 || options.outHeight/sample>1024) sample*=2
+        options.inJustDecodeBounds=false; options.inSampleSize=sample
+        BitmapFactory.decodeByteArray(data,0,data.size,options)
+    }.getOrNull()
 }

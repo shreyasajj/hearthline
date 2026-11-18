@@ -39,6 +39,7 @@ import java.time.format.DateTimeFormatter
                 if(plan.visibleFavorites<vm.config.favorites.size) TextButton(onClick={details="favorites"},modifier=Modifier.heightIn(min=56.dp)) {
                     Text("All ${vm.config.favorites.size}",maxLines=1)
                 }
+                if(!readOnly) TextButton(onClick=vm::openHomeEditor,modifier=Modifier.heightIn(min=56.dp)) { Text("Edit Home") }
                 Text(clock.format(DateTimeFormatter.ofPattern("h:mm")),fontSize=40.sp,fontWeight=FontWeight.Light,maxLines=1,softWrap=false)
             }
             if(plan.landscape) Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
@@ -50,6 +51,7 @@ import java.time.format.DateTimeFormatter
             }
         }
     }
+    if(!readOnly) HomeEditorScreen(vm)
     if(details != null) ModalBottomSheet(onDismissRequest={details=null}) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -74,7 +76,7 @@ import java.time.format.DateTimeFormatter
         Text("Favorites",style=MaterialTheme.typography.labelLarge)
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             if(visible.isEmpty()) Surface(Modifier.fillMaxSize(),shape=MaterialTheme.shapes.large,color=MaterialTheme.colorScheme.surfaceVariant) {
-                Box(Modifier.padding(24.dp),contentAlignment=Alignment.Center) {Text("Choose favorite devices in Home Assistant",style=MaterialTheme.typography.titleLarge)}
+                Box(Modifier.padding(24.dp),contentAlignment=Alignment.Center) {Text("Tap Edit Home to choose devices from Home Assistant",style=MaterialTheme.typography.titleLarge)}
             }
             visible.chunked(plan.columns).forEach { row ->
                 Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -158,12 +160,13 @@ import java.time.format.DateTimeFormatter
 }
 @Composable private fun OverviewTrack(vm: HubViewModel) {
     val readOnly=LocalDockReadOnly.current
-    val title=vm.player?.attrs?.optString("media_title")?.takeIf {it.isNotBlank()} ?: "Nothing playing"
-    val artist=vm.player?.attrs?.optString("media_artist")?.takeIf {it.isNotBlank()} ?: "Select music to begin"
+    val receiver=LocalSendspinReceiver.current
+    val title=displayTrackTitle(vm,receiver)
+    val artist=displayTrackArtist(vm,receiver)
     if(LocalDensity.current.fontScale>1.3f) {
         Column(Modifier.fillMaxWidth().clickable(enabled=!readOnly,onClickLabel="Open music") { vm.open(PlaybackNavigation.Page.MUSIC) },verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(title,fontSize=22.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
-            Text("$artist · ${vm.player?.state ?: "unavailable"}",style=MaterialTheme.typography.bodyLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text("$artist · ${displayPlayerStatus(vm,receiver)}",style=MaterialTheme.typography.bodyLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
         }
         return
     }
@@ -172,10 +175,10 @@ import java.time.format.DateTimeFormatter
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             AlbumArt(vm,Modifier.size(72.dp).clickable(enabled=!readOnly,onClickLabel="Open music") {vm.open(PlaybackNavigation.Page.MUSIC)})
             Column(Modifier.weight(1f)) {
-                Text(vm.player?.attrs?.optString("media_title")?.takeIf {it.isNotBlank()} ?: "Nothing playing",fontSize=22.sp,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
-                Text(vm.player?.attrs?.optString("media_artist")?.takeIf {it.isNotBlank()} ?: "Select music to begin",style=MaterialTheme.typography.bodyLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(displayTrackTitle(vm,receiver),fontSize=22.sp,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+                Text(displayTrackArtist(vm,receiver),style=MaterialTheme.typography.bodyLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
             }
         }
-        Text(vm.player?.state ?: "No player configured",style=MaterialTheme.typography.labelMedium,maxLines=1)
+        Text(displayPlayerStatus(vm,receiver),style=MaterialTheme.typography.labelMedium,maxLines=1)
     }
 }
