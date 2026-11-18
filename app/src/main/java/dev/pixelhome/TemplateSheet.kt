@@ -141,7 +141,7 @@ data class MapConfiguration(val style:String,val origins:Set<String>,val attribu
                 else -> templateNumber(ceil(d.durationSeconds / 60)) to "min"
             }
             HeroMeasurement(duration.first, duration.second)
-            val imperial = java.util.Locale.getDefault().country in setOf("US", "LR", "MM")
+            val imperial = LocalConfiguration.current.locales[0].country in setOf("US", "LR", "MM")
             TemplateSupport("${templateNumber(d.distanceMeters / if(imperial) 1609.344 else 1000.0, 1)} ${if(imperial) "miles" else "km"}")
             TemplateSupport("Arrive ${templateTime(d.departure.plusMillis((d.durationSeconds * 1000).toLong()), d.timezone)}")
             Text(if(d.traffic == "live") "Includes live traffic" else "Estimated time · traffic unavailable", fontSize = 20.sp,
@@ -188,7 +188,7 @@ data class MapConfiguration(val style:String,val origins:Set<String>,val attribu
             else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 d.hours.forEach { hour ->
                     Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        Text(DateTimeFormatter.ofPattern("ha", java.util.Locale.getDefault()).withZone(ZoneId.systemDefault()).format(hour.at), fontSize = 20.sp)
+                        Text(DateTimeFormatter.ofPattern("ha", LocalConfiguration.current.locales[0]).withZone(ZoneId.systemDefault()).format(hour.at), fontSize = 20.sp)
                         WeatherIcon(hour.condition, Modifier.size(46.dp).semantics { contentDescription = conditionName(hour.condition) })
                         Text("${templateNumber(hour.temperature)}${if(d.unit == "K") " K" else "°"}", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
                         Text(hour.probability?.let { "${templateNumber(it)}%" } ?: "—", fontSize = 18.sp)
