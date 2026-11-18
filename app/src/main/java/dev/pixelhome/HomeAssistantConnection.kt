@@ -57,7 +57,6 @@ private fun Context.hostActivity(): MainActivity? = when(this) {
                 if(discovery.addresses.isNotBlank()) Text("Tablet IP: ${discovery.addresses}")
                 Text("If HA cannot discover this tablet across VLANs, enter this IP in hearthline-ha setup and allow TCP 8787. Discovery shares only installation identity and app version; authorization still uses your HTTPS HA server.",style=MaterialTheme.typography.bodySmall)
             }
-            Text(vm.pairingStatus)
             if(vm.configRevision.isNotEmpty()) Text("Dashboard revision: ${vm.configRevision}")
             if(vm.tabletIdentity.isNotEmpty()) Text("Installation: ${vm.tabletIdentity}",style=MaterialTheme.typography.bodySmall)
             if(!vm.paired) TextButton(onClick=vm::forgetLocally,enabled=!vm.busy) { Text("Forget stored server locally") }
@@ -77,14 +76,18 @@ private fun Context.hostActivity(): MainActivity? = when(this) {
             }
             val tokenUi = draft.legacy || draft.useToken
             OutlinedTextField(draft.url, { draft.url = it }, label = { Text("HTTPS server URL") }, placeholder = { Text("https://home.example.com") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text(vm.pairingStatus)
             if(!draft.legacy && !vm.paired) {
                 Text("Pair with a code", style = MaterialTheme.typography.titleMedium)
                 Text("In Home Assistant: Settings → Devices & services → hearthline-ha → your tablet → Configure → Pair a tablet with a code. Enter the 8-digit code here. It works once and expires after 5 minutes. No account token is needed.")
                 OutlinedTextField(draft.code, draft::updateCode, label = { Text("Pairing code") }, placeholder = { Text("12345678") },
                     supportingText = { Text("Enter 12345678 or 1234-5678. The hyphen is optional.") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, autoCorrectEnabled = false), singleLine = true, modifier = Modifier.fillMaxWidth())
-                Button(onClick = vm::pairWithCode, enabled = draft.codeComplete && draft.url.isNotBlank() && !vm.busy, modifier = Modifier.heightIn(min = 56.dp)) { Text("Pair with code") }
-                if(!tokenUi) draft.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                draft.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                if(vm.pairingWithCode) LinearProgressIndicator(Modifier.fillMaxWidth())
+                Button(onClick = vm::pairWithCode, enabled = !vm.busy, modifier = Modifier.heightIn(min = 56.dp)) {
+                    Text(if(vm.pairingWithCode) "Pairing…" else "Pair with code")
+                }
                 Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                     Switch(checked=draft.useToken,onCheckedChange={ draft.useToken=it; if(!it) draft.clearToken() })
                     Text("Advanced: pair with a long-lived access token instead")
