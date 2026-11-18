@@ -150,6 +150,7 @@ class MainActivity : ComponentActivity() {
                     else if (host.locked) { if(host.lockScreenEligible) LockedHubScreen(model, host) else Surface(Modifier.fillMaxSize()) {} }
                     else if(host.dashboardPreview) DockDashboard(model,host,preview=true)
                     else PixelHome(model)
+                    if(!host.locked) SendspinPairingDialog(receiver)
                 }
             }
         }

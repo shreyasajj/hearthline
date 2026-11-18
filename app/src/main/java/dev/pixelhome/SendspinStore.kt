@@ -37,7 +37,7 @@ class SendspinStore(context: Context) {
     } ?: JSONObject().put("identity", ClientIdentity.encodeForStorage(ClientIdentity.generate()))
         .put("pairing", Base64Url.encode(secureRandomBytes(32))).put("records", "[]").also { persist(it) }
     val identity = ClientIdentity.fromStoredKey(root.getString("identity")) ?: error("Receiver identity unavailable")
-    private var config = PairingConfig(Base64Url.decodeOrNull(root.getString("pairing")) ?: error("Receiver pairing unavailable"), false, false)
+    private var config = PairingConfig(Base64Url.decodeOrNull(root.getString("pairing")) ?: error("Receiver pairing unavailable"), false, true)
     val trust: TrustStore = object : InMemoryTrustStore(PskRecordCodec.decode(root.getString("records")), config.pairingPskId) {
         override fun onChanged() = listRecords().size <= 16 && change("records", PskRecordCodec.encode(listRecords()))
     }
