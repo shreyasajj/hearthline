@@ -8,7 +8,7 @@ Changes require a pull request, an up-to-date branch, resolved conversations, an
 
 CI audits all resolved runtime, test, and build-plugin Maven dependencies against OSV and fails on known advisories or an incomplete audit. Patched build-tool transitive dependencies use minimum version constraints in `build.gradle.kts`. The Kotlin build plugin is updated to close its build-cache deserialization advisory. These tool libraries are separate from the APK runtime.
 
-CI builds the debug APK and runs application tests, Sendspin player tests, shared JVM tests, and Android lint. The Actions run provides the APK and test/lint reports as artifacts. These APKs use a development debug certificate, not a production release key. CI does not run camera, microphone, physical dock, or Home Assistant device acceptance tests.
+CI builds the debug APK and runs application tests, Sendspin player tests, shared JVM and Android host tests, and Android lint. The Actions run provides the APK and test/lint reports as artifacts. These APKs use a development debug certificate, not a production release key. CI does not run camera, microphone, physical dock, or Home Assistant device acceptance tests.
 
 ## Automatic dependency updates
 

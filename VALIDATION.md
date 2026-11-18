@@ -91,3 +91,12 @@ Not exercised on the device: the push stream itself, telemetry isolation and dis
 ## 0.7.5 — pairing with a code
 
 Settings now leads with **Pairing code** and **Pair with code**; token pairing moved under **Advanced**. `PairingCodeTest` covers code entry (digits only, 8 maximum, cleared with the token), validation of the pairing response when HA chooses the entry, rejection of malformed responses, and the HTTPS-only origin and 8-digit check before any request. **111 unit tests, 0 failures**; assemble and lint pass (0 errors). The HA side is covered by six tests in hearthline-ha 0.7.5. Pairing against the user's HA is blocked until HA is served over HTTPS that Android trusts; it currently answers only on plain HTTP.
+
+
+## Combined dependency updates — November 18, 2026
+
+Validated AGP 9.5.1 with its built-in Kotlin support, the Android KMP library plugin, compile API 37, Compose BOM 2026.09.00, OkHttp 5.5.1, Ktor 3.6.1, coroutines 1.11.0 and JNA 5.19.1. Minimum API 31 and target API 35 are unchanged. GitHub Actions use the pinned updates from the actions Dependabot PR and install the matching SDK/build tools.
+
+Local checks: debug APK assembly and lint passed; 114 application, 56 player, 210 shared JVM and 672 shared Android host tests passed, with no skipped tests. The Android host suite is explicitly enabled, has its MockK dependency, and runs in CI. The dependency inventory audited 430 resolved Maven components with no known OSV advisories after applying minimum patched versions to isolated test/build-tool configurations. Security automation and dependency-audit Python unit tests also passed.
+
+The newer Compose lint rules exposed two non-observable locale reads in the journey/weather UI; these now read the observable Android configuration. Physical tablet, dock audio and live Home Assistant/Music Assistant acceptance were not rerun for these dependency updates.
