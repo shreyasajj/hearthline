@@ -12,8 +12,8 @@ android {
         minSdk = 31
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.7.9"
+        versionCode = 20
+        versionName = "0.7.10"
     }
     buildFeatures { compose = true }
     testOptions { unitTests { isIncludeAndroidResources = true } }

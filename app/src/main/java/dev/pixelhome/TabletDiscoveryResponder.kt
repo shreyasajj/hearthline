@@ -39,7 +39,9 @@ internal class TabletDiscoveryResponder(
 
     fun close() {
         runCatching { server.close() }
-        clients.toList().forEach { runCatching { it.close() } }
+        // Iterate the concurrent set directly: Kotlin's toList() size-one shortcut can
+        // call next() after the last client concurrently removes itself.
+        clients.forEach { runCatching { it.close() } }
     }
 
     private fun respond(client: Socket) {

@@ -1,8 +1,8 @@
-# Hearthline 0.7.5
+# Hearthline 0.7.10
 
 [![CI](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml) [![CodeQL](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml)
 
-Source: [shreyasajj/hearthline](https://github.com/shreyasajj/hearthline). Download the current development APK from a successful [CI run](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml). See [security maintenance](SECURITY.md) for protected merges, dependency updates, and automatic CodeQL fix PRs.
+Source: [shreyasajj/hearthline](https://github.com/shreyasajj/hearthline). Download the development APK from the [latest release](https://github.com/shreyasajj/hearthline/releases/latest) or a successful [CI run](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml). See [security maintenance](SECURITY.md) for protected merges, dependency updates, and automatic CodeQL fix PRs.
 
 A local Android home dashboard with integration-managed Home Assistant setup, remembered tablet pairing, and opt-in foreground tablet telemetry. This tablet project lives in `pixel-home`. Home Assistant integration source is maintained separately in `pixel-table-ha` and https://github.com/shreyasajj/hearthline-ha.
 
@@ -16,7 +16,7 @@ Read [HEARTHLINE-SETUP.md](HEARTHLINE-SETUP.md) for installation, pairing, migra
 
 `install/Hearthline-preview.apk` uses the existing separate preview ID `dev.pixelhome.templates`. `install/Hearthline-debug.apk` uses `dev.pixelhome` and replaces an installation with the same package/signing key. Both are development builds, signed with the local Android debug certificate, not production release artifacts. Do not clear an existing app's data to test this fork without saving any settings you want to keep.
 
-Build with JDK 17 and Android SDK 35:
+Build with JDK 17, Android SDK 37 and Build Tools 36.0.0:
 
 ```sh
 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug -PpixelHomeTestId=dev.pixelhome.templates
@@ -42,4 +42,8 @@ With hearthline-ha 0.7.4 or later, a paired tablet keeps a read-only WebSocket o
 
 ## Pair with a code (0.7.5)
 
-You no longer need a long-lived access token. In HA open the tablet's hearthline-ha entry → **Configure → Pair a tablet with a code**, then type the 8-digit code into Hearthline's Settings with your HTTPS HA address. The code works once and expires after 5 minutes. Token pairing remains under **Advanced**. Requires hearthline-ha 0.7.5 or later. See [TABLET-PROTOCOL.md](TABLET-PROTOCOL.md#pairing-with-a-code-ha-075--tablet-075).
+You no longer need a long-lived access token. In HA open the tablet's hearthline-ha entry → **Configure → Pair a tablet with a code**, then type the 8-digit code (with or without the hyphen, such as `12345678` or `1234-5678`) into Hearthline's Settings with your HTTPS HA address. The code works once and expires after 5 minutes. Token pairing remains under **Advanced**. Requires hearthline-ha 0.7.5 or later. See [TABLET-PROTOCOL.md](TABLET-PROTOCOL.md#pairing-with-a-code-ha-075--tablet-075).
+
+## Debugging mode
+
+Settings → **Debugging mode** shows the connection banner, command messages and activity indicator. It defaults to off and is remembered on the tablet, leaving the connected dashboard more room. Demo and disconnected warnings remain visible.

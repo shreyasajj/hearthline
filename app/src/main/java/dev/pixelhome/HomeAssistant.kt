@@ -34,6 +34,12 @@ fun parseConfig(a: JSONObject): DashboardConfig {
             MusicShortcut(it.getString("title"), it.getString("uri"), it.optString("type", "music"))
         }, a.optInt("idle_seconds", 45).coerceIn(15, 600))
 }
+internal fun normalizePairingCode(code: String): String {
+    val digits = code.trim().replace("-", "")
+    require(digits.matches(Regex("[0-9]{8}"))) { "Enter the 8-digit code from Home Assistant, with or without the hyphen." }
+    return digits
+}
+
 class HomeAssistant(base: String, private val token: String, val pairedEntry: String? = null) {
     val origin = base.trim().trimEnd('/').toHttpUrl().also {
         require(it.isHttps) { "Use an HTTPS Home Assistant URL with a trusted certificate." }
@@ -45,8 +51,8 @@ class HomeAssistant(base: String, private val token: String, val pairedEntry: St
         validatePairing(JSONObject(request("/api/pixel_home/pair",JSONObject().put("schema_version",1).put("entry_id",entry).put("tablet_id",tabletId),8192)), entry)
     /** Pairs with a one-time code from the HA entry options. Needs no account token; construct with an empty token. */
     suspend fun pairWithCode(tabletId: String, code: String): JSONObject {
-        require(code.matches(Regex("\\d{8}"))) { "Enter the 8-digit code from Home Assistant." }
-        return validatePairing(JSONObject(request("/api/pixel_home/pair/code",JSONObject().put("schema_version",1).put("tablet_id",tabletId).put("code",code),8192)), null)
+        val digits = normalizePairingCode(code)
+        return validatePairing(JSONObject(request("/api/pixel_home/pair/code",JSONObject().put("schema_version",1).put("tablet_id",tabletId).put("code",digits),8192)), null)
     }
     suspend fun pairingChoices(): JSONArray = JSONObject(request("/api/pixel_home/pair", maxBytes=32768)).getJSONArray("tablets")
     suspend fun tabletConfig(): JSONObject = JSONObject(request(tabletPath("config"),maxBytes=32768)).also { validateTabletConfig(it,requireNotNull(pairedEntry)) }

@@ -28,6 +28,7 @@ class HubViewModel : ViewModel() {
     var connected by mutableStateOf(false); private set
     var lastStateAt by mutableStateOf<Long?>(null); private set
     var busy by mutableStateOf(false); private set
+    var pairingWithCode by mutableStateOf(false); private set
     var message by mutableStateOf<String?>(null); private set
     var hubEnabled by mutableStateOf(true); private set
     var dark by mutableStateOf(false)
@@ -91,9 +92,15 @@ class HubViewModel : ViewModel() {
     }
     /** Pairs with the one-time code shown in HA → hearthline-ha → Configure → Pair a tablet with a code. */
     fun pairWithCode() {
-        if(!unlocked() || busy || !connectionDraft.codeComplete) return
-        val store=pairingStore ?: return
-        busy=true
+        if (busy) return
+        if (!unlocked()) { connectionDraft.note="Unlock the tablet before pairing."; return }
+        connectionDraft.pairingInputError()?.let { connectionDraft.note=it; return }
+        val store=pairingStore ?: run {
+            connectionDraft.note="Tablet pairing storage is unavailable. Close and reopen the app, then try again."
+            return
+        }
+        connectionDraft.note="Pairing with Home Assistant…"
+        busy=true; pairingWithCode=true
         viewModelScope.launch {
             try {
                 val setup=HomeAssistant(connectionDraft.url,"")
@@ -102,8 +109,12 @@ class HubViewModel : ViewModel() {
             catch(_: HaAuthorizationException) { connectionDraft.note="Code not accepted. Codes work once and expire after 5 minutes; open Pair a tablet with a code in HA for a new one." }
             catch(_: HaRateLimitedException) { connectionDraft.note="Too many wrong codes. Wait 5 minutes, then create a new code in HA." }
             catch(e: IllegalArgumentException) { connectionDraft.note=e.message ?: "Check the HTTPS server address." }
-            catch(_: Exception) { connectionDraft.note="Pairing failed. Check the HTTPS address, that hearthline-ha 0.7.5 or later is installed, and that the entry is not already paired." }
-            finally { busy=false }
+            catch(_: javax.net.ssl.SSLException) { connectionDraft.note="Secure connection failed. Use an HTTPS address with a certificate trusted by this tablet." }
+            catch(_: java.net.UnknownHostException) { connectionDraft.note="Home Assistant address could not be found. Check the hostname and tablet network connection." }
+            catch(_: java.net.SocketTimeoutException) { connectionDraft.note="Home Assistant did not respond in time. Check the address and network, then try again." }
+            catch(_: java.io.IOException) { connectionDraft.note="Could not reach Home Assistant. Check the HTTPS address, port and tablet network connection." }
+            catch(_: Exception) { connectionDraft.note="Pairing failed. Check that hearthline-ha 0.7.5 or later is installed and the tablet entry is not already paired." }
+            finally { busy=false; pairingWithCode=false }
         }
     }
     private suspend fun remember(store: TabletPairingStore, setup: HomeAssistant, result: org.json.JSONObject) {
@@ -113,7 +124,7 @@ class HubViewModel : ViewModel() {
         catch(e: Exception) { server.unpair(); throw e }
         remembered=store.load(); api=server; paired=true; authRevoked=false; failures=0
         demo=false; connected=false; entities=emptyMap(); config=DashboardConfig(); selectedPlayer=""
-        telemetrySession=""; lastPush=null; telemetryEnabled=false; pairingStatus="Pairing remembered with Android Keystore encryption"
+        telemetrySession=""; lastPush=null; telemetryEnabled=false; pairingStatus="Paired successfully · connecting to your dashboard"
         connectionDraft.clearToken(); pairingChoices=emptyList()
         assistant.configure(assistant.enabled,result.getString("display_id"))
         foreground(foreground)

@@ -39,6 +39,17 @@ class HaConnectionDraft {
     }
     fun updateCode(value: String) { code = value.filter(Char::isDigit).take(8); note = null }
     val codeComplete get() = code.length == 8
+    fun pairingInputError(): String? {
+        if (url.isBlank()) return "Enter your HTTPS Home Assistant server address above."
+        if (!codeComplete) return "Enter all 8 digits of the pairing code from Home Assistant."
+        return try {
+            HomeAssistant(url, "")
+            normalizePairingCode(code)
+            null
+        } catch (e: IllegalArgumentException) {
+            e.message ?: "Check the HTTPS server address and pairing code."
+        }
+    }
     fun clearToken() { token = ""; code = ""; scannerRequested = false }
     fun cancelRequests() { cameraPendingAt = null; imagePendingAt = null; scannerRequested = false }
 }

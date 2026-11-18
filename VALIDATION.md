@@ -100,3 +100,10 @@ Validated AGP 9.5.1 with its built-in Kotlin support, the Android KMP library pl
 Local checks: debug APK assembly and lint passed; 114 application, 56 player, 210 shared JVM and 672 shared Android host tests passed, with no skipped tests. The Android host suite is explicitly enabled, has its MockK dependency, and runs in CI. The dependency inventory audited 430 resolved Maven components with no known OSV advisories after applying minimum patched versions to isolated test/build-tool configurations. Security automation and dependency-audit Python unit tests also passed.
 
 The newer Compose lint rules exposed two non-observable locale reads in the journey/weather UI; these now read the observable Android configuration. Physical tablet, dock audio and live Home Assistant/Music Assistant acceptance were not rerun for these dependency updates.
+
+
+## Hearthline 0.7.10 release — November 18, 2026
+
+PR #31 is integrated with the Sendspin pairing UI and dependency/build migration from PRs #32 and #33. Version code 20 advances the installed app version. Home Assistant code entry accepts the optional hyphen, pairing reports progress and actionable failures, and the remembered debugging preference controls the connected-dashboard status UI. Discovery shutdown now iterates its concurrent client set directly, fixing the race exposed by the socket tests when a client disconnects during shutdown.
+
+The debug APK build and lint passed. All 1,055 local tests passed with no skips: 117 app, 56 player, 210 shared JVM and 672 shared Android host. The dependency audit checked 430 resolved Maven components and reported zero known advisories. Release APKs use the local development debug signing certificate; no production signing key is configured. Live HA/Music Assistant pairing and physical dock acceptance were not rerun for this release.

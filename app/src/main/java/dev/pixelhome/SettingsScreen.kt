@@ -51,6 +51,13 @@ import dev.pixelhome.PlaybackNavigation.Page
     val host = LocalHubHost.current
     var displayId by remember { mutableStateOf(vm.assistant.displayId) }
     Title("Make it yours", "Home Assistant manages the dashboard content")
+    Tile(Modifier.widthIn(max = 800.dp).fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Debugging mode", Modifier.weight(1f))
+            Switch(host.debuggingMode, host::debugging)
+        }
+        Text("Show the connection banner, command messages and activity indicator above the dashboard. This setting is remembered on this tablet.")
+    }
     AmbientSettingsCard(LocalAmbient.current)
     Tile(Modifier.widthIn(max = 800.dp).fillMaxWidth()) {
         Text("Assistant display", style = MaterialTheme.typography.titleLarge)

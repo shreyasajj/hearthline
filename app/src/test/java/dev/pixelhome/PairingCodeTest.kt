@@ -5,6 +5,35 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PairingCodeTest {
+    @Test fun incompletePairingExplainsWhatIsMissing() {
+        val draft = HaConnectionDraft()
+        draft.updateCode("12345678")
+        assertEquals("Enter your HTTPS Home Assistant server address above.", draft.pairingInputError())
+        draft.url = "https://ha.example.com"
+        draft.updateCode("123")
+        assertEquals("Enter all 8 digits of the pairing code from Home Assistant.", draft.pairingInputError())
+        draft.updateCode("1234-5678")
+        assertNull(draft.pairingInputError())
+        draft.url = "http://ha.example.com"
+        assertTrue(draft.pairingInputError()!!.contains("HTTPS"))
+    }
+
+    @Test fun codeEntryAndRequestAcceptWithOrWithoutHyphen() {
+        val draft = HaConnectionDraft()
+        for (value in listOf("12345678", "1234-5678", "0123-4567")) {
+            draft.updateCode(value)
+            assertTrue(draft.codeComplete)
+            assertEquals(value.replace("-", ""), draft.code)
+            assertEquals(draft.code, normalizePairingCode(value))
+        }
+    }
+
+    @Test fun codeRequestRejectsMalformedValues() {
+        for (value in listOf("1234", "1234-56789", "1234-abcd", "1234 5678", "１２３４５６７８")) {
+            assertThrows(IllegalArgumentException::class.java) { normalizePairingCode(value) }
+        }
+    }
+
     @Test fun codeKeepsOnlyEightDigitsAndClearsWithToken() {
         val draft=HaConnectionDraft()
         draft.updateCode("1234-56 78 99"); assertEquals("12345678",draft.code); assertTrue(draft.codeComplete)
