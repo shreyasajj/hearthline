@@ -320,20 +320,24 @@ private val Olive = Color(0xFF30372A)
     BackHandler(vm.page != Page.HOME && vm.assistant.answer == null) { vm.open(Page.HOME) }
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.safeDrawingPadding()) {
-            Surface(color = if (vm.demo) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+            val host = LocalHubHost.current
+            val showConnection = host.debuggingMode || vm.demo || !vm.connected
+            if (showConnection || host.dockTestActive) Surface(color = if (vm.demo) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     if(LocalHubHost.current.dockTestActive) Text("Assumed dock · test",style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(end=16.dp))
-                    Text(if (vm.demo) "Design demo · sample devices · no audio playback" else if (vm.connected) "Home Assistant connected" else "Disconnected · displayed values may be stale", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
-                    TextButton(onClick = { vm.open(Page.SETTINGS) }) { Text("Connection") }
+                    if (showConnection) {
+                        Text(if (vm.demo) "Design demo · sample devices · no audio playback" else if (vm.connected) "Home Assistant connected" else "Disconnected · displayed values may be stale", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = { vm.open(Page.SETTINGS) }) { Text("Connection") }
+                    }
                 }
             }
-            vm.message?.let { message ->
+            if (host.debuggingMode) vm.message?.let { message ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                     TextButton(onClick = vm::clearMessage) { Text("Dismiss") }
                 }
             }
-            if (vm.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (host.debuggingMode && vm.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             BoxWithConstraints(Modifier.weight(1f)) {
                 val wide = maxWidth >= 840.dp
                 Row(Modifier.fillMaxSize()) {

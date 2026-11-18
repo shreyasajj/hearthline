@@ -18,6 +18,12 @@ class HubHost(private val activity: ComponentActivity) {
     private val preferences = activity.getSharedPreferences("hub_display", 0)
     private val keyguard = activity.getSystemService(KeyguardManager::class.java)
     private val roles = activity.getSystemService(RoleManager::class.java)
+    var debuggingMode by mutableStateOf(preferences.getBoolean("debugging_mode", false)); private set
+    fun debugging(enabled: Boolean) {
+        if (isLockedNow()) return
+        debuggingMode = enabled
+        preferences.edit().putBoolean("debugging_mode", enabled).apply()
+    }
     var locked by mutableStateOf(true); private set
     var isDefaultHome by mutableStateOf(false); private set
     var showWhenLocked by mutableStateOf(preferences.getBoolean("show_when_locked", false)); private set
