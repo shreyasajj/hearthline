@@ -81,6 +81,7 @@ private fun Context.hostActivity(): MainActivity? = when(this) {
                 Text("Pair with a code", style = MaterialTheme.typography.titleMedium)
                 Text("In Home Assistant: Settings → Devices & services → hearthline-ha → your tablet → Configure → Pair a tablet with a code. Enter the 8-digit code here. It works once and expires after 5 minutes. No account token is needed.")
                 OutlinedTextField(draft.code, draft::updateCode, label = { Text("Pairing code") }, placeholder = { Text("12345678") },
+                    supportingText = { Text("Enter 12345678 or 1234-5678. The hyphen is optional.") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, autoCorrectEnabled = false), singleLine = true, modifier = Modifier.fillMaxWidth())
                 Button(onClick = vm::pairWithCode, enabled = draft.codeComplete && draft.url.isNotBlank() && !vm.busy, modifier = Modifier.heightIn(min = 56.dp)) { Text("Pair with code") }
                 if(!tokenUi) draft.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }

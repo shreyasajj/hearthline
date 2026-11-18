@@ -42,4 +42,4 @@ With hearthline-ha 0.7.4 or later, a paired tablet keeps a read-only WebSocket o
 
 ## Pair with a code (0.7.5)
 
-You no longer need a long-lived access token. In HA open the tablet's hearthline-ha entry → **Configure → Pair a tablet with a code**, then type the 8-digit code into Hearthline's Settings with your HTTPS HA address. The code works once and expires after 5 minutes. Token pairing remains under **Advanced**. Requires hearthline-ha 0.7.5 or later. See [TABLET-PROTOCOL.md](TABLET-PROTOCOL.md#pairing-with-a-code-ha-075--tablet-075).
+You no longer need a long-lived access token. In HA open the tablet's hearthline-ha entry → **Configure → Pair a tablet with a code**, then type the 8-digit code (with or without the hyphen, such as `12345678` or `1234-5678`) into Hearthline's Settings with your HTTPS HA address. The code works once and expires after 5 minutes. Token pairing remains under **Advanced**. Requires hearthline-ha 0.7.5 or later. See [TABLET-PROTOCOL.md](TABLET-PROTOCOL.md#pairing-with-a-code-ha-075--tablet-075).
