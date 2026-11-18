@@ -42,15 +42,15 @@ buildscript {
 }
 
 plugins {
-    id("com.android.application") version "8.7.3" apply false
-    id("com.android.library") version "8.7.3" apply false
+    id("com.android.application") version "9.5.1" apply false
+    id("com.android.library") version "9.5.1" apply false
+    id("com.android.kotlin.multiplatform.library") version "9.5.1" apply false
     id("org.jetbrains.kotlin.multiplatform") version "2.4.21" apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "2.4.21" apply false
-    id("org.jetbrains.kotlin.android") version "2.4.21" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
 }
 
-// AGP also resolves isolated device-test tool configurations outside its classpath.
+// AGP also resolves isolated test and build-tool configurations outside its classpath.
 // Raise only vulnerable versions; allow newer upstream/Dependabot versions through.
 allprojects {
     configurations.configureEach {
@@ -61,6 +61,9 @@ allprojects {
                     if (requested.version?.endsWith("-android") == true) "33.8.0-android" else "33.8.0-jre"
                 requested.group == "com.google.protobuf" && requested.name in setOf("protobuf-java", "protobuf-java-util") -> "3.25.9"
                 requested.group == "commons-io" && requested.name == "commons-io" -> "2.22.0"
+                requested.group == "org.apache.commons" && requested.name == "commons-lang3" -> "3.18.0"
+                requested.group == "org.apache.httpcomponents" && requested.name == "httpclient" -> "4.5.14"
+                requested.group == "org.bouncycastle" && requested.name in setOf("bcprov-jdk18on", "bcpkix-jdk18on", "bcutil-jdk18on") -> "1.87"
                 else -> null
             }
             if (minimum != null && requested.version != null) {
@@ -72,7 +75,7 @@ allprojects {
                     .firstOrNull { it != 0 } ?: 0
                 if (difference < 0) {
                     useVersion(minimum)
-                    because("Patch vulnerable Android device-test tool dependencies")
+                    because("Patch vulnerable Android test and build-tool dependencies")
                 }
             }
         }

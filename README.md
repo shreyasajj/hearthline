@@ -1,8 +1,8 @@
-# Hearthline 0.7.5
+# Hearthline 0.7.10
 
 [![CI](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml) [![CodeQL](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml)
 
-Source: [shreyasajj/hearthline](https://github.com/shreyasajj/hearthline). Download the current development APK from a successful [CI run](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml). See [security maintenance](SECURITY.md) for protected merges, dependency updates, and automatic CodeQL fix PRs.
+Source: [shreyasajj/hearthline](https://github.com/shreyasajj/hearthline). Download the development APK from the [latest release](https://github.com/shreyasajj/hearthline/releases/latest) or a successful [CI run](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml). See [security maintenance](SECURITY.md) for protected merges, dependency updates, and automatic CodeQL fix PRs.
 
 A local Android home dashboard with integration-managed Home Assistant setup, remembered tablet pairing, and opt-in foreground tablet telemetry. This tablet project lives in `pixel-home`. Home Assistant integration source is maintained separately in `pixel-table-ha` and https://github.com/shreyasajj/hearthline-ha.
 
@@ -16,7 +16,7 @@ Read [HEARTHLINE-SETUP.md](HEARTHLINE-SETUP.md) for installation, pairing, migra
 
 `install/Hearthline-preview.apk` uses the existing separate preview ID `dev.pixelhome.templates`. `install/Hearthline-debug.apk` uses `dev.pixelhome` and replaces an installation with the same package/signing key. Both are development builds, signed with the local Android debug certificate, not production release artifacts. Do not clear an existing app's data to test this fork without saving any settings you want to keep.
 
-Build with JDK 17 and Android SDK 35:
+Build with JDK 17, Android SDK 37 and Build Tools 36.0.0:
 
 ```sh
 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug -PpixelHomeTestId=dev.pixelhome.templates
