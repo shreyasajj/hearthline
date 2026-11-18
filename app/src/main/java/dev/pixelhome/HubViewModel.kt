@@ -41,6 +41,75 @@ class HubViewModel : ViewModel() {
     var lastPush by mutableStateOf<String?>(null); private set
     var tabletIdentity by mutableStateOf(""); private set
     var paired by mutableStateOf(false); private set
+    var editorOpen by mutableStateOf(false); private set
+    var editorDraft by mutableStateOf<HomeEditDraft?>(null); private set
+    var editorChoices by mutableStateOf<List<HomeChoice>>(emptyList()); private set
+    var editorQuery by mutableStateOf(""); private set
+    var editorError by mutableStateOf<String?>(null); private set
+    var editorLoading by mutableStateOf(false); private set
+    var editorSaving by mutableStateOf(false); private set
+    var editorTruncated by mutableStateOf(false); private set
+    private var editorJob: Job? = null
+    private var editorRequestGeneration=0
+    private var playerPreferences: android.content.SharedPreferences? = null
+    private fun playerPreferenceKey(server: HomeAssistant) = server.origin.toString()+"|"+server.pairedEntry.orEmpty()
+    fun openHomeEditor() {
+        if(!unlocked()) return
+        editorOpen=true; editorDraft=null; editorChoices=emptyList(); editorQuery=""; loadHomeEditor(reset=true)
+    }
+    fun closeHomeEditor() {
+        if(editorSaving) return
+        editorRequestGeneration++; editorJob?.cancel(); editorLoading=false; editorOpen=false
+    }
+    fun updateHomeQuery(value: String) { if(unlocked() && !editorSaving) editorQuery=value.take(80) }
+    fun updateHomeTitle(value: String) { if(unlocked() && !editorSaving) editorDraft=editorDraft?.copy(title=value.take(80)) }
+    fun chooseHomeEntity(group: String,id: String,checked: Boolean) {
+        if(!unlocked() || editorSaving) return
+        try { editorDraft=editorDraft?.choose(group,id,checked); editorError=null } catch(e: IllegalArgumentException) { editorError=e.message }
+    }
+    fun moveHomeChoice(group: String,id: String,direction: Int) {
+        if(unlocked() && !editorSaving) editorDraft=editorDraft?.move(group,id,direction)
+    }
+    fun loadHomeEditor(reset: Boolean=false) {
+        if(!unlocked() || editorSaving) return
+        val server=api
+        if(server?.pairedEntry==null) { editorError="Pair this tablet with hearthline-ha to edit Home. Legacy connections can be configured in Home Assistant."; return }
+        editorJob?.cancel(); editorLoading=true; editorError=null
+        val generation=++editorRequestGeneration
+        val query=editorQuery
+        editorJob=viewModelScope.launch {
+            try {
+                val result=server.homeEditor(query)
+                if(api !== server || !editorOpen || generation!=editorRequestGeneration) return@launch
+                editorChoices=parseHomeChoices(result); editorTruncated=result.getBoolean("truncated")
+                if(reset || editorDraft==null) editorDraft=HomeEditDraft.from(result.getJSONObject("config"))
+            } catch(e: CancellationException) { throw e }
+            catch(e: Exception) { if(api===server && generation==editorRequestGeneration) editorError=editorFailure(e) }
+            finally { if(generation==editorRequestGeneration) editorLoading=false }
+        }
+    }
+    private fun editorFailure(error: Exception) = when {
+        error is HaHttpException && error.status==404 -> "Update hearthline-ha to 0.7.6 or later to edit Home on this tablet."
+        error is HaHttpException && error.status==409 -> "The dashboard changed in Home Assistant. Reload the saved layout before saving again."
+        error is HaAuthorizationException -> "Dashboard editing requires an active pairing owned by a Home Assistant administrator."
+        else -> "Could not update Home. Check the connection and that the selected entities still exist, then retry."
+    }
+    fun saveHomeEditor() {
+        if(!unlocked() || !connected || editorSaving || editorLoading) return
+        val server=api ?: return; val draft=editorDraft ?: return
+        editorSaving=true; editorError=null
+        editorJob=viewModelScope.launch {
+            try {
+                val saved=server.saveHomeEditor(draft)
+                if(api !== server) return@launch
+                config=parseConfig(saved.getJSONObject("dashboard")); configRevision=saved.getString("revision")
+                if(selectedPlayer !in config.players) select("")
+                editorOpen=false; foreground(foreground)
+            } catch(e: CancellationException) { throw e }
+            catch(e: Exception) { if(api===server) editorError=editorFailure(e) }
+            finally { editorSaving=false }
+        }
+    }
     private var pairingStore: TabletPairingStore? = null
     private var remembered: JSONObject? = null
     private var telemetrySnapshot: (() -> JSONObject)? = null
@@ -51,6 +120,7 @@ class HubViewModel : ViewModel() {
     private var failures = 0
     private var authRevoked = false
     fun attachPairing(context: android.content.Context, host: HubHost, screen: () -> String) {
+        playerPreferences = context.getSharedPreferences("home_player_selection",0)
         telemetrySnapshot = { tabletTelemetry(context,host,screen(),tabletIdentity,telemetrySession,telemetrySequence) }
         if(pairingStore != null) return
         try {
@@ -145,6 +215,7 @@ class HubViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 if(server!=null) { try { server.unpair() } catch(_: HaAuthorizationException) { /* Already revoked */ } }
+                server?.let { playerPreferences?.edit()?.remove(playerPreferenceKey(it))?.apply() }
                 pairingStore?.forget(); remembered=null; paired=false; telemetryEnabled=false; telemetrySession=""
                 api=null; stopSync(); assistant.lifecycle(foreground,null); connected=false
                 demo=false; entities=emptyMap(); config=DashboardConfig(); artwork=null; selectedPlayer=""
@@ -156,6 +227,8 @@ class HubViewModel : ViewModel() {
     }
     fun forgetLocally() {
         if(!unlocked()) return
+        api?.let { playerPreferences?.edit()?.remove(playerPreferenceKey(it))?.apply() }
+        selectedPlayer=""
         pairingStore?.forget(); remembered=null; paired=false; telemetryEnabled=false
         api=null; stopSync(); connected=false; demo=false; entities=emptyMap(); config=DashboardConfig(); artwork=null
         assistant.lifecycle(foreground,null); pairingStatus="Forgot locally. Revoke the tablet in HA options to invalidate its server credential."
@@ -197,16 +270,18 @@ class HubViewModel : ViewModel() {
     fun touch() { navigation.touch(now()) }
     fun open(value: PlaybackNavigation.Page) { if (!unlocked()) return; if(value != PlaybackNavigation.Page.SETTINGS) { connectionDraft.clearToken(); connectionDraft.cancelRequests(); tokenQrJob?.cancel() }; navigation.open(value, now()); page = navigation.page() }
     fun hub(value: Boolean) { hubEnabled = value; if (!value) navigation.leaveHub(now()); page = navigation.page() }
-    fun tick() { if (!foreground) return; if (assistant.answer != null) touch(); navigation.tick(hubEnabled, playing, now(), config.idleSeconds * 1000L); page = navigation.page() }
+    fun tick() { if (!foreground) return; if (assistant.answer != null || editorOpen) touch(); navigation.tick(hubEnabled, playing, now(), config.idleSeconds * 1000L); page = navigation.page() }
     fun clearMessage() { message = null }
     fun select(id: String) {
         if (!unlocked()) return
-        if (id !in config.players) return
+        if (id.isNotEmpty() && id !in config.players) return
         selectedPlayer = id; artwork = null; artworkKey = ""; touch()
+        api?.let { server -> playerPreferences?.edit()?.putString(playerPreferenceKey(server),id)?.apply(); if(connected) statesChanged(server) }
     }
     fun foreground(value: Boolean) {
         foreground = value; stopSync()
         if(!value) {
+            editorOpen=false; editorRequestGeneration++; editorJob?.cancel(); editorLoading=false
             connectionDraft.scannerRequested = false
             if(connectionDraft.importingImage) connectionDraft.note = "QR image import cancelled. Try again."
             tokenQrJob?.cancel(); connectionDraft.importingImage = false
@@ -281,7 +356,8 @@ class HubViewModel : ViewModel() {
         if (!connected) message = null
         connected = true; failures=0
         pairingStatus=when { !paired -> "Legacy session connection"; streaming -> "Connected · live updates"; else -> "Connected · remembered pairing" }
-        if (selectedPlayer !in resolved.players) selectedPlayer = resolved.players.firstOrNull().orEmpty()
+        val preferred=playerPreferences?.getString(playerPreferenceKey(server),null) ?: selectedPlayer
+        selectedPlayer=preferred.takeIf { it in resolved.players }.orEmpty()
         statesChanged(server)
     }
     private fun statesChanged(server: HomeAssistant) {

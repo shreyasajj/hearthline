@@ -1,4 +1,4 @@
-# Hearthline 0.7.10
+# Hearthline 0.7.11
 
 [![CI](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/ci.yml) [![CodeQL](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml/badge.svg)](https://github.com/shreyasajj/hearthline/actions/workflows/codeql.yml)
 
@@ -47,3 +47,10 @@ You no longer need a long-lived access token. In HA open the tablet's hearthline
 ## Debugging mode
 
 Settings → **Debugging mode** shows the connection banner, command messages and activity indicator. It defaults to off and is remembered on the tablet, leaving the connected dashboard more room. Demo and disconnected warnings remain visible.
+
+
+## Edit Home and automatic Sendspin player (0.7.11)
+
+Tap **Edit Home** on the unlocked Home page to search Home Assistant for lights, switches, thermostats, locks, scenes and media players. Choose and reorder up to eight favorite devices, six scenes and eight available players, edit the title, then **Save Home**. The selections are stored in this tablet's Home Assistant entry. This requires hearthline-ha 0.7.6 or later and an active pairing owned by an HA administrator. An older integration produces an update message; no account token needs to be pasted again. Concurrent HA edits require reloading the saved layout before saving.
+
+The player panel, Music page and simple player show Sendspin metadata/artwork and controls while the receiver has an active playing stream. Playback controls follow the commands advertised by the Sendspin server; volume controls the receiver. When Sendspin stops, the panel returns to the chosen HA player. The fallback picker includes **Sendspin only** and remembers the choice for this server/tablet. With no selected HA player, only Sendspin status and controls are shown. No HA player is selected automatically after pairing. Android lock restrictions still apply to editing and playback controls.

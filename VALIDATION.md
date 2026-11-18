@@ -107,3 +107,10 @@ The newer Compose lint rules exposed two non-observable locale reads in the jour
 PR #31 is integrated with the Sendspin pairing UI and dependency/build migration from PRs #32 and #33. Version code 20 advances the installed app version. Home Assistant code entry accepts the optional hyphen, pairing reports progress and actionable failures, and the remembered debugging preference controls the connected-dashboard status UI. Discovery shutdown now iterates its concurrent client set directly, fixing the race exposed by the socket tests when a client disconnects during shutdown.
 
 The debug APK build and lint passed. All 1,055 local tests passed with no skips: 117 app, 56 player, 210 shared JVM and 672 shared Android host. The dependency audit checked 430 resolved Maven components and reported zero known advisories. Release APKs use the local development debug signing certificate; no production signing key is configured. Live HA/Music Assistant pairing and physical dock acceptance were not rerun for this release.
+
+
+## Home editor and shared Sendspin player — 0.7.11
+
+Local APK assembly and lint pass. All 1,063 Android/JVM tests pass without skips: 125 application, 56 player, 210 shared JVM and 672 Android host. The dependency audit covers 430 Maven components with zero known advisories. New tests cover editor bounds, supported entity types, order/removal, payload revision, malformed catalogues, Sendspin priority, explicit empty player selection and lock guards. Compose UI tests also exercise opening/cancelling the editor, selecting Sendspin-only playback, and hiding the editor in the locked dock. The separate HA integration 0.7.6 passes 88 real HA tests plus 45 provider/display tool tests, including authenticated catalogues, permission filtering, cross-tablet isolation, invalid/stale edits, deleted entities, empty players and stream filter refresh after saving.
+
+The edit screen requires integration 0.7.6; older servers show an update instruction. Live-server editor acceptance and actual Sendspin artwork/control behavior have not been exercised with Music Assistant hardware. The APK uses the existing local development signing certificate.

@@ -55,6 +55,11 @@ class HomeAssistant(base: String, private val token: String, val pairedEntry: St
         return validatePairing(JSONObject(request("/api/pixel_home/pair/code",JSONObject().put("schema_version",1).put("tablet_id",tabletId).put("code",digits),8192)), null)
     }
     suspend fun pairingChoices(): JSONArray = JSONObject(request("/api/pixel_home/pair", maxBytes=32768)).getJSONArray("tablets")
+    suspend fun homeEditor(query: String): JSONObject {
+        val url=origin.resolve(tabletPath("editor"))!!.newBuilder().addQueryParameter("query",query.take(80)).build()
+        return JSONObject(request(url.toString(),maxBytes=512*1024)).also { validateTabletConfig(it.getJSONObject("config"),requireNotNull(pairedEntry)); parseHomeChoices(it) }
+    }
+    suspend fun saveHomeEditor(draft: HomeEditDraft): JSONObject = JSONObject(request(tabletPath("editor"),draft.payload(),32768)).also { validateTabletConfig(it,requireNotNull(pairedEntry)) }
     suspend fun tabletConfig(): JSONObject = JSONObject(request(tabletPath("config"),maxBytes=32768)).also { validateTabletConfig(it,requireNotNull(pairedEntry)) }
     /**
      * Opens the paired push stream: a snapshot, then one message per selected-entity state change.
@@ -78,7 +83,7 @@ class HomeAssistant(base: String, private val token: String, val pairedEntry: St
         client.newCall(builder.build()).execute().use { response ->
             if(response.code == 401 || response.code == 403) throw HaAuthorizationException()
             if(response.code == 429) throw HaRateLimitedException()
-            check(response.isSuccessful) { "Home Assistant returned HTTP ${response.code}. Check connection, permissions and entity IDs." }
+            if(!response.isSuccessful) throw HaHttpException(response.code)
             val source = response.body ?: error("Empty server response")
             source.byteStream().use { input ->
                 val output = java.io.ByteArrayOutputStream()
@@ -143,6 +148,8 @@ class HomeAssistant(base: String, private val token: String, val pairedEntry: St
         return Request.Builder().url(url).header("Authorization", "Bearer $token").build()
     }
 }
+
+class HaHttpException(val status: Int) : IllegalStateException("Home Assistant returned HTTP $status.")
 
 class HaAuthorizationException : java.io.IOException("Pairing revoked or account authorization expired. Pair again.")
 

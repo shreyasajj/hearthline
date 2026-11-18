@@ -39,3 +39,8 @@ A dedicated Android Keystore AES-GCM key encrypts the receiver's identity, pairi
 Native library: [SendspinDroid](https://github.com/chrisuthe/SendspinDroid), MIT; pinned revision and build adaptations are in third-party/sendspin/UPSTREAM.md. Full notice is shipped in APK assets/licenses/SendspinDroid.txt and the source package. [Sendspin client implementation guide](https://www.sendspin-audio.com/build/guide/client/) and [Music Assistant Sendspin provider](https://www.music-assistant.io/player-support/sendspin/) describe the connection roles.
 
 See VALIDATION.md for the exact checks completed and limitations. Physical tablet checks passed encrypted pairing and 48 kHz stereo PCM digital-silence playback against a local reference server, repeated connection playback, visible/background listener lifetime, encrypted identity persistence across process restart and reset. These are not a live Music Assistant or audible dock/synchronization test.
+
+
+## Home player panel
+
+Hearthline 0.7.11 uses the right-hand Home player, Music page and simple player for Sendspin as well as HA media players. An active playing Sendspin stream takes priority, including while muted or silenced by audio focus; the output status describes the actual receiver state. Metadata and artwork come from the admitted encrypted connection. Playback buttons are enabled only for commands the server advertises and activates. When the stream stops, the selected HA fallback is shown. Choose **Sendspin only** to leave the HA fallback unselected; that choice is remembered independently of receiver pairing and HA credentials.
