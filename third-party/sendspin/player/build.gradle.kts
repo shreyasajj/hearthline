@@ -12,7 +12,7 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
-    implementation("io.ktor:ktor-client-core:3.1.1")
+    implementation("io.ktor:ktor-client-core:3.6.1")
     api(project(":sendspin-shared"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
