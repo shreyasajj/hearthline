@@ -1,4 +1,6 @@
-# Hearthline 0.7.2 validation — November 16, 2026
+# Hearthline 0.7.4 validation — November 17, 2026
+
+The newest evidence is in [0.7.4](#074--push-stream-telemetry-isolation-discovery-fixes) at the end, after [Discovery 0.7.3](#discovery-073). Earlier sections are retained from 0.7.2 and before.
 
 This includes actual one-page layout checks on the connected tablet, using clearly labeled demonstration data. It is **not completed live Home Assistant tablet onboarding acceptance** and has not been deployed to the user's HA instance. The current tablet source and its uncommitted layout changes have been consolidated into `pixel-home`; the HA integration now lives separately in `pixel-table-ha`. Earlier upstream validation is archived separately in VALIDATION-0.6.1.md.
 
@@ -65,3 +67,27 @@ The BatteryManager web reference timed out; Android SDK/source and the existing 
 All tablet source (including uncommitted one-page layout edits) was consolidated into `pixel-home` and byte-compared against the pre-split source snapshot. The HA integration now lives separately under `../pixel-table-ha/custom_components/pixel_home`. The pre-split source trees and Git bundle are backed up outside both projects.
 
 After moving, app unit tests (87 tests), preview assembly and lint passed from `pixel-home`; default-package assembly and APK signature verification also passed. The current tablet package excludes Home Assistant integration Python source, which has its own HA-only package in the sibling repository. Historical combined archives are preserved in the split backup.
+
+## Discovery 0.7.3
+
+Current Android unit suite: 95 tests, zero failures/errors. Unit tests exercise the read-only HTTP protocol, header/body bounds and metadata exclusions. Android preview assembly and lint passed. The connected unlocked tablet was updated with the preview APK without clearing data. A LAN browser observed its mDNS service, and the HA production identification validator accepted its real HTTP response using a standalone real-aiohttp transport harness. Returning the existing production app to the foreground closed the preview listener. No Home-role change, PIN, home command or production HA deployment was involved.
+
+The private-IP responder and same-LAN advertisement are live-device verified; routing/mDNS reflection across the user's VLANs and authenticated HA onboarding still require acceptance. The updated APK is mandatory; old APKs cannot advertise this service merely from an HA integration update. Targeted pre-change source files are backed up outside both projects.
+
+## 0.7.4 — push stream, telemetry isolation, discovery fixes
+
+Build and unit tests (JDK 17, SDK 35, preview ID `dev.pixelhome.templates`): `:app:testDebugUnitTest`, `:app:assembleDebug`, `:app:lintDebug` pass. **107 unit tests, 0 failures.** New: push-stream message parsing and validation (`StreamEventTest`), installation-ID creation, corruption and fail-closed-while-paired cases (`InstallationIdTest`), and the discovery responder over real loopback sockets: identity and 400 responses, a slow client not delaying a second request, connections beyond the limit closed rather than queued, close dropping active clients, and private-address preference (`TabletDiscoveryResponderTest`). Lint: **0 errors, 7 warnings**; `InsecureBaseConfiguration` is the documented cleartext allowance in `res/xml/network_security_config.xml`.
+
+On the connected Pixel Tablet (Android 16), the preview APK was updated in place with `adb install -r`; app data and the installation ID were kept. Observed:
+
+- The discovery endpoint returned `app_version` 0.7.4 with the existing installation ID; another path returned 400.
+- With one client holding a half-sent request open, a second request was answered in 26 ms.
+- Sending the app Home closed the listener (connection refused); bringing it back reopened it, and a macOS `dns-sd` browser saw `Hearthline-9a4c3672`.
+- One pause/resume cycle produced exactly one `_hearthline._tcp` registration in the system mDNS log (previously two).
+- No crash in logcat across the session.
+
+Not exercised on the device: the push stream itself, telemetry isolation and discovery pausing after pairing. They need the tablet paired to an HA server it trusts over HTTPS, which was not available in this session. The HA side of the stream is covered by eight tests against HA's real HTTP/WebSocket stack in hearthline-ha 0.7.4.
+
+## 0.7.5 — pairing with a code
+
+Settings now leads with **Pairing code** and **Pair with code**; token pairing moved under **Advanced**. `PairingCodeTest` covers code entry (digits only, 8 maximum, cleared with the token), validation of the pairing response when HA chooses the entry, rejection of malformed responses, and the HTTPS-only origin and 8-digit check before any request. **111 unit tests, 0 failures**; assemble and lint pass (0 errors). The HA side is covered by six tests in hearthline-ha 0.7.5. Pairing against the user's HA is blocked until HA is served over HTTPS that Android trusts; it currently answers only on plain HTTP.

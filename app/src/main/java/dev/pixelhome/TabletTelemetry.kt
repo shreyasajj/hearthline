@@ -9,7 +9,7 @@ import java.time.OffsetDateTime
 fun tabletTelemetry(context: Context, host: HubHost, page: String, tabletId: String, session: String, sequence: Long): JSONObject {
     val dock=host.dock
     return JSONObject().put("schema_version",1).put("tablet_id",tabletId).put("session_id",session)
-        .put("sequence",sequence).put("observed_at",OffsetDateTime.now().toString()).put("app_version","0.7.0")
+        .put("sequence",sequence).put("observed_at",OffsetDateTime.now().toString()).put("app_version",context.packageManager.getPackageInfo(context.packageName,0).versionName ?: "unknown")
         .put("battery_percent",dock.batteryPercent ?: JSONObject.NULL).put("battery_status",dock.batteryStatus)
         .put("charging",dock.charging ?: JSONObject.NULL).put("power_source",dock.powerSource.lowercase())
         .put("dock_state",dock.observation.connection.name.lowercase())

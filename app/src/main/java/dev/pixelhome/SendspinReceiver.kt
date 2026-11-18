@@ -176,7 +176,8 @@ class SendspinReceiver(app: Application) : AndroidViewModel(app) {
         }, { true }, { muted })
         private fun post(action: () -> Unit) { handler.post { if(active.get() && runtime === this) action() } }
         private val host = object : SendSpinHost {
-            override val softwareVersion = "Hearthline 0.6.1"
+            // Shown to Music Assistant; it was hard-coded to 0.6.1 through 0.7.3.
+            override val softwareVersion = "Hearthline " + (runCatching { context.packageManager.getPackageInfo(context.packageName,0).versionName }.getOrNull() ?: "unknown")
             override val lowMemoryMode = true
             override val highPowerMode = false
             override val serverColors = false
