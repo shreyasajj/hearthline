@@ -2,7 +2,7 @@
 // Constraints keep upstream upgrades possible and do not ship these tools in the APK.
 buildscript {
     dependencies {
-        classpath(platform("io.netty:netty-bom:4.1.141.Final"))
+        classpath(platform("io.netty:netty-bom:4.2.21.Final"))
         constraints {
             add("classpath", "com.google.guava:guava:33.8.0-jre") {
                 because("Use a patched build-tool dependency; see SECURITY.md")
